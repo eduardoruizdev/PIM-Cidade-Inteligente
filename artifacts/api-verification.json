@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-31T22:51:03.973Z",
+  "base": "http://localhost:5080",
+  "results": [
+    {
+      "name": "Swagger contém os endpoints exigidos",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/ocorrencias",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/cidadaos",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/funcionarios",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/categorias",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/dashboard/resumo",
+      "result": "aprovado"
+    },
+    {
+      "name": "Sem sessão retorna 401: /api/configuracoes",
+      "result": "aprovado"
+    },
+    {
+      "name": "Login inválido é rejeitado por Data Annotations",
+      "result": "aprovado"
+    },
+    {
+      "name": "Origem externa não pode realizar mutações",
+      "result": "aprovado"
+    },
+    {
+      "name": "Fluxos persistidos no SQL Server",
+      "result": "não executado",
+      "reason": "Conexão indisponível; /health retornou 503"
+    }
+  ]
+}
