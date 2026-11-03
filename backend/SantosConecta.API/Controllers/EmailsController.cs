@@ -5,7 +5,7 @@ using SantosConecta.Application.DTOs;
 using SantosConecta.Application.Services;
 namespace SantosConecta.API.Controllers;
 
-[ApiController, Route("api/emails"), Authorize]
+[ApiController, Route("api/emails"), Authorize(Roles="Administrador,Funcionário")]
 public class EmailsController(EmailService service, OcorrenciaService ocorrencias) : ControllerBase
 {
     [HttpGet("ocorrencia/{id:int}")]

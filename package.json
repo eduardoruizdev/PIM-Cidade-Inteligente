@@ -10,10 +10,19 @@
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "api": "node scripts/start-api.mjs",
+    "db:update": "dotnet run --project tools/DatabaseUpdater",
     "api:seed": "node scripts/start-api.mjs --seed",
     "test:api": "node scripts/test-api.mjs",
+    "test:cidadao": "node scripts/test-citizen.mjs",
+    "test:mobile": "powershell -ExecutionPolicy Bypass -File scripts/check-mobile.ps1",
+    "mobile:web:build": "powershell -ExecutionPolicy Bypass -File scripts/build-mobile-web.ps1",
+    "mobile:web": "node scripts/serve-mobile.mjs",
     "format": "prettier --write src tests vite.config.ts playwright.config.ts",
-    "diagnosticar:sql": "node scripts/start-api.mjs --diagnosticar-sql"
+    "diagnosticar:sql": "node scripts/start-api.mjs --diagnosticar-sql",
+    "test:v2": "node scripts/test-v2.mjs",
+    "test:admin:web": "node scripts/test-admin-web-v2.mjs",
+    "test:mobile:web:v2": "node scripts/test-mobile-web-v2.mjs",
+    "test:traffic:live": "node scripts/test-traffic-live.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",

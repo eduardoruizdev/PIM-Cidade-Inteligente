@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "SantosConecta.Application/1.0.0": {
+        "dependencies": {
+          "SantosConecta.Domain": "1.0.0"
+        },
+        "runtime": {
+          "SantosConecta.Application.dll": {}
+        }
+      },
+      "SantosConecta.Domain/1.0.0": {
+        "runtime": {
+          "SantosConecta.Domain.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SantosConecta.Application/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SantosConecta.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

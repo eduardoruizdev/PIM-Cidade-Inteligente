@@ -5,9 +5,11 @@ public record HistoricoDto(int IdHistorico, string Descricao, DateTime DataAlter
 public record OcorrenciaDto(int IdOcorrencia, string Protocolo, string Titulo, string Descricao,
     string Bairro, string Endereco, decimal Latitude, decimal Longitude, DateTime DataAbertura,
     string Status, string Prioridade, CidadaoDto Cidadao, FuncionarioDto? Funcionario,
-    CategoriaDto Categoria, List<HistoricoDto> Historico);
+    CategoriaDto Categoria, List<HistoricoDto> Historico, bool LocalizacaoConfirmada);
 public class SalvarOcorrenciaDto
 {
+    public bool? LocalizacaoConfirmada { get; set; }
+    [StringLength(350)] public string? JustificativaPrioridade { get; set; }
     [Required, StringLength(150, MinimumLength = 5)] public string Titulo { get; set; } = "";
     [Required, StringLength(10000, MinimumLength = 10)] public string Descricao { get; set; } = "";
     [Required, MaxLength(100)] public string Bairro { get; set; } = "";
@@ -31,5 +33,5 @@ public class ObservacaoDto
 {
     [Required, StringLength(500, MinimumLength = 3)] public string Descricao { get; set; } = "";
 }
-public record DashboardResumoDto(int Total, int AguardandoAnalise, int EmAndamento, int Resolvidas);
+public record DashboardResumoDto(int Total, int AguardandoAnalise, int EmAndamento, int Resolvidas, int Abertas, int EmAnalise, int Atrasadas, double? TempoMedioResolucaoHoras, int MensagensPendentes);
 public record BairroDto(string Bairro, int Quantidade);

@@ -18,7 +18,11 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 // A exceção de certificado e o arquivo local são exclusivos de Development.
 if (builder.Environment.IsDevelopment())
+{
+    // Nome de configuração local preservado a pedido do usuário; ambos ignorados no Git.
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true);
+    builder.Configuration.AddJsonFile("appsettings.Local.example.json", optional: true);
+}
 builder.Configuration.AddEnvironmentVariables();
 var connectionString = builder.Configuration.GetConnectionString("SantosConecta")
     ?? throw new InvalidOperationException("Configure ConnectionStrings:SantosConecta no servidor.");
@@ -36,19 +40,37 @@ builder.Services.AddSwaggerGen(o => o.SwaggerDoc("v1", new OpenApiInfo
 var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".data-protection")));
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(o =>
-{
-    o.Cookie.Name = "SantosConecta.Auth"; o.Cookie.HttpOnly = true;
-    o.Cookie.SameSite = SameSiteMode.Lax;
-    o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-    o.ExpireTimeSpan = TimeSpan.FromHours(4); o.SlidingExpiration = true;
-    o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
-    o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
-});
+SantosConecta.API.Authentication.PortalAuthentication.AddPortalAuthentication(builder.Services, builder.Environment.IsDevelopment());
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient("TravessiaLinks", c => {
+    c.Timeout = TimeSpan.FromSeconds(16);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta/3.0 (verificacao-de-link)");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddSingleton(sp => new TravessiaService(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("TravessiaLinks"),
+    sp.GetRequiredService<ILogger<TravessiaService>>()));
+builder.Services.AddHttpClient<ServicosPublicosService>(c=>{c.Timeout=TimeSpan.FromSeconds(20);c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta-Academico/3.0");});
+builder.Services.AddSingleton<ConectaHistorico>();
+builder.Services.AddScoped<IConectaConsultas,ConectaConsultas>();
+builder.Services.AddScoped<ConectaService>();
+builder.Services.AddHttpClient<IConectaModelo,ConectaModelo>(c=>c.Timeout=TimeSpan.FromSeconds(12)).RemoveAllLoggers();
+builder.Services.AddHttpClient<ClimaService>(c=>c.Timeout=TimeSpan.FromSeconds(20));
+builder.Services.AddHttpClient<ViaService>(c=> { c.Timeout=TimeSpan.FromSeconds(35);c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta/2.0"); });
+builder.Services.AddHttpClient<FcmMeteorologia>(c=>c.Timeout=TimeSpan.FromSeconds(20)).RemoveAllLoggers();
+builder.Services.AddHostedService<MeteorologiaWorker>();
+builder.Services.AddHttpClient<TransitoService>(c=>c.Timeout=TimeSpan.FromSeconds(15)).RemoveAllLoggers();
+builder.Services.AddHttpClient<LocalizacaoService>(c => { c.BaseAddress=new Uri(builder.Configuration["Geocoding:BaseUrl"]??"https://nominatim.openstreetmap.org/");c.Timeout=TimeSpan.FromSeconds(20);c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta-Academico/2.0"); });
+builder.Services.AddScoped<IPortalRepository, PortalRepository>();
+builder.Services.AddScoped<IPasswordHasher<Cidadao>, PasswordHasher<Cidadao>>();
+builder.Services.AddScoped<PortalService>();
+builder.Services.AddScoped<PriorizacaoService>();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
+    o.AddPolicy("conecta", context => RateLimitPartition.GetFixedWindowLimiter(
+        (context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonimo")+":"+(context.User.IsInRole("Cidadao")?"cidadao":"outro"),
+        _=>new FixedWindowRateLimiterOptions{PermitLimit=12,Window=TimeSpan.FromMinutes(1),QueueLimit=0}));
     o.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "local",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
@@ -61,6 +83,9 @@ builder.Services.AddScoped<IEmailRepository, EmailRepository>();
 builder.Services.AddScoped<IPasswordHasher<Funcionario>, PasswordHasher<Funcionario>>();
 builder.Services.AddScoped<OcorrenciaService>();
 builder.Services.AddScoped<CadastroService>();
+builder.Services.AddScoped<EquipeService>();
+builder.Services.AddScoped<MensagemService>();
+builder.Services.AddScoped<IMensagemRepository, MensagemRepository>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AutenticacaoService>();
 builder.Services.AddScoped<EmailService>();
@@ -68,6 +93,25 @@ builder.Services.AddScoped<AssistenteService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHttpClient<IRespostaService, GroqService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 var app = builder.Build();
+
+// Fixture explícita por CLI em Development: conta de funcionário, sem privilégios de administrador.
+if (args.Contains("--preparar-teste"))
+{
+    if(!app.Environment.IsDevelopment())throw new InvalidOperationException("Fixture disponível apenas em Development.");
+    var email=builder.Configuration["TestFixture:Email"]??"";
+    var senha=builder.Configuration["TestFixture:Password"]??"";
+    if(!email.EndsWith("@exemplo.invalid")||senha.Length<20)throw new ArgumentException("Configure credenciais exclusivas da fixture no ambiente.");
+    using var scope=app.Services.CreateScope();
+    var db=scope.ServiceProvider.GetRequiredService<SantosConectaDbContext>();
+    if(await db.Funcionarios.AnyAsync(f=>f.Email==email))throw new ArgumentException("Fixture já existe; use um e-mail exclusivo.");
+    var perfil=builder.Configuration["TestFixture:Perfil"]??"Funcionário";
+    if(perfil!="Funcionário" && perfil!="Administrador")throw new ArgumentException("Perfil de fixture inválido.");
+    var f=new Funcionario {Nome="Funcionário de teste acadêmico",Email=email,Perfil=perfil,Cargo="Validação acadêmica",Telefone="13999999999"};
+    f.SenhaHash=scope.ServiceProvider.GetRequiredService<IPasswordHasher<Funcionario>>().HashPassword(f,senha);
+    db.Funcionarios.Add(f);await db.SaveChangesAsync();
+    app.Logger.LogInformation("Fixture de teste criada. Nenhuma credencial registrada em log.");
+    return;
+}
 
 if (args.Contains("--diagnosticar-sql"))
 {
@@ -92,6 +136,7 @@ app.Use(async (context, next) =>
         var status = ex switch
         {
             ArgumentException => 400,
+            System.Text.Json.JsonException => 400,
             SqlException or DbUpdateException => 503,
             HttpRequestException => 502,
             InvalidOperationException => 503,
@@ -120,8 +165,8 @@ app.Use(async (context, next) =>
     await next();
 });
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", async (SantosConectaDbContext db) =>

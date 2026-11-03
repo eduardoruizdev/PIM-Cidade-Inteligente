@@ -68,11 +68,11 @@ export function Communication({
   return (
     <div className="communication-grid">
       <Panel
-        title="Responder ao cidadão"
+        title="Enviar e-mail ao cidadão"
         subtitle={
           assistantOnly
             ? 'Sugestão administrativa com revisão do funcionário.'
-            : 'Prepare e revise a resposta antes de enviar.'
+            : 'Para conversar no aplicativo, use Mensagens com o cidadão. Este formulário envia somente e-mail.'
         }
       >
         <div className="contact-card">

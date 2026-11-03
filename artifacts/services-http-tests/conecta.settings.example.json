@@ -1,0 +1,8 @@
+{
+  "Conecta": {
+    "AIEnabled": true,
+    "Model": "openai/gpt-oss-20b",
+    "MaxPerUserDay": 40,
+    "MaxPerDay": 500
+  }
+}

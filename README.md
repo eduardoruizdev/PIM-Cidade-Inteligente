@@ -1,4 +1,59 @@
+# Santos Conecta 2.0
+
+**Serviços Próximos e aparência:** catálogo oficial no Flutter, mapa/lista, localização opcional e temas claro, escuro e automático no Flutter e no portal React do cidadão. [Entrega, fonte e validação](docs/SERVICOS-E-APARENCIA.md).
+
+**Conecta, assistente do cidadão:** disponível no Flutter e no portal React em `/cidadao`. Consulta dados autorizados, oferece ações de navegação e identifica o modo orientativo quando a IA está indisponível. [Configuração, testes e limites](docs/CONECTA.md).
+
+Atualização de 02/11/2026: cadastro e edição de funcionários em modal acessível; sino e notificações nos dois sentidos com leitura individual da equipe; trânsito TomTom real com fluxo, velocidades e incidentes. [Configuração e execução atualizadas](docs/TRANSITO-E-NOTIFICACOES.md). A configuração privada desta máquina mantém o nome `backend/SantosConecta.API/appsettings.Local.example.json`, carregado em Development e ignorado no Git. Aplique também `database/06-notificacoes.sql` em novas instalações sobre os scripts 01–05.
+
+API: `npm.cmd run api` (5080). Painel: `npm.cmd run dev` → http://localhost:5173. Aplicativo: `npm.cmd run mobile:web:build` e `npm.cmd run mobile:web` → http://127.0.0.1:5200, com proxy para a mesma API na porta 5080.
+
+Os registros de versões anteriores abaixo são históricos. Para os testes da atualização atual, consulte [docs/VALIDACAO.md](docs/VALIDACAO.md).
+
+Evolução incremental com atendimento privado React/Flutter, gestão de funcionários com autorização no servidor, localização por bairro e rua, dashboard ampliado e tela de trânsito com integração TomTom desativada por padrão.
+
+- [Entrega 2.0, configuração, decisões e limites](docs/SANTOS-CONECTA-2.md)
+- [Testes executados e pendências](docs/VALIDACAO.md)
+- [Scripts incrementais de equipe e mensagens](database/04-santos-conecta-v2.sql)
+- [Script de localização confirmada](database/05-localizacao.sql)
+
+Execute a API com `npm.cmd run api`, o painel com `npm.cmd run dev` e consulte o guia acima para Flutter. Aplique os scripts 04 e 05 sobre o banco já preparado pelos scripts 01–03. Não foram alteradas senhas existentes nem removidos registros. Não há vínculo oficial com a Prefeitura.
+
+## Registro das versões anteriores
+
+As descrições abaixo são históricas; o estado e os endpoints atuais estão no guia 2.0.
+
 # Santos Conecta
+
+## Atualização — painel, cidadãos e priorização territorial
+
+**Teste o aplicativo no navegador sem Android Studio:** execute `npm.cmd run mobile:web:build` e `npm.cmd run mobile:web`, com a API C# na porta 5080. Abra `http://127.0.0.1:5200`. Passo a passo em [docs/FLUTTER.md](docs/FLUTTER.md).
+
+O projeto existente foi ampliado com identidade verde e Montserrat local, aplicativo Flutter Android em `mobile/`, cadastro/login de cidadãos, isolamento das reclamações por sessão, Priorização Territorial Justa, fila administrativa, indicadores de equidade e classificação opcional via Groq no backend. A página Relatórios continua removida. É uma plataforma acadêmica fictícia, sem vínculo com a Prefeitura de Santos.
+
+**A conexão real com o SQL Server foi confirmada nesta evolução e o script incremental `database/03-mobile-priorizacao.sql` foi aplicado, preservando os dados anteriores.** As falhas SSPI/TLS descritas no registro anterior abaixo ocorreram no executor restrito; o diagnóstico e os fluxos persistidos funcionaram fora do sandbox, sem alterar TLS ou permissões do servidor.
+
+- [Entrega atual, API e execução](docs/EVOLUCAO.md)
+- [Aplicativo Flutter: instalação, emulador e dispositivo físico](docs/FLUTTER.md)
+- [Fórmula e limites da priorização territorial](docs/PRIORIZACAO.md)
+- [Resultados reais e pendências desta evolução](docs/VALIDACAO-EVOLUCAO.md)
+
+```powershell
+npm.cmd run build
+dotnet build SantosConecta.sln --no-restore
+dotnet run --project tests/priority/PriorityChecks.csproj
+npm.cmd run test:mobile
+# Com API de teste na porta 5081 e SQL acessível:
+npm.cmd run test:cidadao
+```
+
+O SDK Flutter local está em `.tools/flutter` e não é versionado. Android SDK/Android Studio ainda precisam ser configurados para APK e execução em aparelho. Groq real depende de `GROQ_API_KEY`; SMTP real depende das credenciais do provedor. Os indicadores territoriais iniciais são **SIMULAÇÃO ACADÊMICA**, sem valor estatístico oficial.
+
+---
+
+## Documentação da versão anterior (preservada)
+
+As observações de indisponibilidade e contagens de testes abaixo registram a versão anterior; para o estado atual use os documentos acima.
 
 Sistema acadêmico de atendimento e gestão de reclamações urbanas de Santos/SP, desenvolvido para a **empresa fictícia Conecta Soluções Urbanas**. Não é um serviço da Prefeitura de Santos e não contém reclamações reais de cidadãos.
 
@@ -310,3 +365,8 @@ Os testes integrados criam cidadãos/reclamações fictícios adicionais e final
 Roteiro da apresentação: login → cadastrar reclamação → alterar status/responsável → consultar histórico → verificar indicadores/mapa → gerar sugestão → revisar e-mail → simular envio → mostrar resultado no SQL Server e contrato no Swagger.
 
 O planejamento de duas sprints e o backlog estão em [docs/SCRUM.md](docs/SCRUM.md). Referências: [ASP.NET Core](https://learn.microsoft.com/aspnet/core/), [EF Core](https://learn.microsoft.com/ef/core/) e [React Leaflet](https://react-leaflet.js.org/docs/api-map/).
+# Travessia Santos–Guarujá
+
+Revisão visual e diagnóstico de fontes: [redesign, validação de links e limitações atuais](docs/travessia-redesign.md).
+
+O aplicativo apresenta os dois sentidos e informa explicitamente a indisponibilidade de tempos reais confirmados. A consulta externa só é oferecida após validação de acesso no backend. Não há tempos simulados, coleta automática de medições ou alertas de espera ativos. Consulte o [relatório atual de fontes, endpoints e validação](docs/travessia-redesign.md). Testes específicos: `dotnet run --project tests/ferry`; diagnóstico real: `node --use-system-ca scripts/check-ferry-sources.mjs`.

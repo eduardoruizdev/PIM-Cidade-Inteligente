@@ -1,0 +1,23 @@
+{
+  "data": "2026-11-02T22:55:23.786Z",
+  "fonteReal": "TomTom",
+  "sqlReal": true,
+  "results": [
+    {
+      "regiao": "Orla",
+      "disponivel": true,
+      "incidentesDisponiveis": true,
+      "trechos": 1,
+      "incidentes": 0,
+      "ultimaAtualizacao": "2026-11-02T22:55:20.1184017Z"
+    },
+    {
+      "regiao": "Av. Ana Costa",
+      "disponivel": true,
+      "incidentesDisponiveis": true,
+      "trechos": 1,
+      "incidentes": 1,
+      "ultimaAtualizacao": "2026-11-02T22:55:23.1082872Z"
+    }
+  ]
+}

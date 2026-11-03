@@ -18,6 +18,7 @@ export function OccurrenceForm() {
           titulo: '',
           descricao: '',
           bairro: 'Gonzaga',
+          localizacaoConfirmada: false,
           endereco: '',
           latitude: -23.9678,
           longitude: -46.3336,
@@ -71,6 +72,32 @@ export function OccurrenceForm() {
       <Panel className="form-panel">
         <form onSubmit={save}>
           <div className="form-grid">
+            <label className="field span-two">
+              <span>
+                <input
+                  type="checkbox"
+                  checked={form.localizacaoConfirmada === true}
+                  onChange={(e) => set('localizacaoConfirmada', e.target.checked)}
+                />{' '}
+                Coordenadas verificadas pela equipe
+              </span>
+              <small>
+                Marque apenas após conferir as coordenadas do endereço. Sem confirmação, o registro
+                é salvo como endereço textual e não recebe marcador.
+              </small>
+            </label>
+            {existing && existing.priority !== form.prioridade && (
+              <label className="field span-two">
+                Justificativa da alteração de prioridade
+                <textarea
+                  required
+                  minLength={10}
+                  maxLength={350}
+                  value={form.justificativaPrioridade || ''}
+                  onChange={(e) => set('justificativaPrioridade', e.target.value)}
+                />
+              </label>
+            )}
             <label className="field span-two">
               Título
               <input

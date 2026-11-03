@@ -8,20 +8,22 @@ import {
   Users,
   Settings,
   Search,
-  Bell,
   ChevronDown,
   LogOut,
   Anchor,
   Menu,
   ShieldCheck,
-  ArrowUpRight,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { Notifications } from '../components/Notifications';
+import { Brand } from '../components/Brand';
 const nav = [
   ['/', 'Visão geral', LayoutDashboard],
   ['/mapa', 'Mapa inteligente', MapPinned],
+  ['/transito', 'Trânsito em Santos', MapPinned],
   ['/ocorrencias', 'Ocorrências', ClipboardList],
+  ['/fila', 'Fila de Atendimento', ClipboardList],
   ['/comunicacao', 'Comunicação', MessagesSquare],
   ['/assistente', 'Assistente inteligente', Sparkles],
   ['/funcionarios', 'Funcionários', Users],
@@ -36,7 +38,6 @@ export function AdminLayout() {
       .map((n) => n[0])
       .join('') || '';
   const [menu, setMenu] = useState(false);
-  const [notifications, setNotifications] = useState(false);
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   if (bootstrapping) return <div className="empty">Verificando sessão...</div>;
@@ -45,41 +46,37 @@ export function AdminLayout() {
     <div className="app-shell">
       <aside className={`sidebar ${menu ? 'open' : ''}`}>
         <a href="/" className="brand">
-          <div className="brand-icon">
-            <Anchor size={26} />
-          </div>
-          <div>
-            Santos
-            <span>
-              conecta<span className="brand-dot">.</span>
-            </span>
-          </div>
+          <Brand />
         </a>
         <div className="workspace">
           <span className="workspace-icon">
             <ShieldCheck size={19} />
           </span>
           <div>
-            Gestão municipal<small>Santos · São Paulo</small>
+            Gestão de atendimento<small>Projeto acadêmico · Santos/SP</small>
           </div>
           <ChevronDown size={14} />
         </div>
         <div className="nav-label">PRINCIPAL</div>
         <nav>
-          {nav.map(([path, label, Icon], i) => (
-            <NavLink
-              end={path === '/'}
-              to={path}
-              key={path}
-              onClick={() => setMenu(false)}
-              className={({ isActive }) => (isActive ? 'active' : '')}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-              {i === 2 && <b>{occurrences.filter((o) => o.status === 'Aberta').length}</b>}
-              {i === 4 && <em>IA</em>}
-            </NavLink>
-          ))}
+          {nav
+            .filter(([path]) => path !== '/funcionarios' || session === 'Administrador')
+            .map(([path, label, Icon]) => (
+              <NavLink
+                end={path === '/'}
+                to={path}
+                key={path}
+                onClick={() => setMenu(false)}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+              >
+                <Icon size={19} />
+                <span>{label}</span>
+                {path === '/ocorrencias' && (
+                  <b>{occurrences.filter((o) => o.status === 'Aberta').length}</b>
+                )}
+                {path === '/assistente' && <em>IA</em>}
+              </NavLink>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="system-status">
@@ -128,37 +125,7 @@ export function AdminLayout() {
             <kbd>↵</kbd>
           </form>
           <span className="demo-pill">ACADÊMICO</span>
-          <div className="notification-wrap">
-            <button
-              className="notification"
-              aria-label="Notificações"
-              onClick={() => setNotifications(!notifications)}
-            >
-              <Bell size={20} />
-              <i />
-            </button>
-            {notifications && (
-              <div className="notification-panel">
-                <h3>Central de notificações</h3>
-                <p>
-                  {
-                    occurrences.filter((o) => o.priority === 'Crítica' && o.status !== 'Resolvida')
-                      .length
-                  }{' '}
-                  registros críticos para acompanhamento.
-                </p>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    navigate('/ocorrencias?criticas=1');
-                    setNotifications(false);
-                  }}
-                >
-                  Consultar ocorrências <ArrowUpRight size={14} />
-                </button>
-              </div>
-            )}
-          </div>
+          <Notifications />
           <div className="header-divider" />
           <div className="avatar small">{initials}</div>
           <div className="header-user">

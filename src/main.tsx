@@ -6,6 +6,7 @@ import { AppProvider } from './contexts/AppContext';
 import { router } from './routes';
 import './styles.css';
 import './styles-refinement.css';
+import './styles-premium.css';
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } },
 });
@@ -18,3 +19,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+import './styles-v2.css';

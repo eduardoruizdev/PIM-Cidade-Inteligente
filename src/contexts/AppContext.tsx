@@ -27,7 +27,7 @@ function useAppState() {
   });
   const people = useQuery({
     queryKey: ['employees'],
-    queryFn: () => request<User[]>('/api/funcionarios'),
+    queryFn: () => request<User[]>('/api/funcionarios/responsaveis'),
     enabled: !!user,
   });
   const citizens = useQuery({
@@ -81,6 +81,8 @@ function useAppState() {
       client.invalidateQueries({ queryKey: ['dashboard'] }),
       client.invalidateQueries({ queryKey: ['emails'] }),
       client.invalidateQueries({ queryKey: ['citizens'] }),
+      client.invalidateQueries({ queryKey: ['priorizacao'] }),
+      client.invalidateQueries({ queryKey: ['equidade'] }),
     ]);
   }
   async function update(id: number, patch: Partial<Occurrence>, text: string) {

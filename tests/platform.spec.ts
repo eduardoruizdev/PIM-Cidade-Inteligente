@@ -19,7 +19,11 @@ test('estado antigo de demonstração não concede acesso administrativo', async
 test('uma tentativa de acesso inválido apresenta erro sem entrar no painel', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Senha', { exact: true }).fill('SenhaIncorretaParaTeste123!');
+  const response = page.waitForResponse(
+    (r) => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Entrar na plataforma' }).click();
+  expect((await response).status()).toBe(401);
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page).toHaveURL(/\/login$/);
 });

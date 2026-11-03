@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   MapPin,
@@ -15,6 +15,7 @@ import { statuses, priorities } from '../data/catalog';
 import { formatDate } from '../utils/metrics';
 import { PageTitle, Panel, Badge, Empty } from '../components/ui';
 import { CityMap } from '../components/CityMap';
+import { OccurrenceMessages } from '../components/OccurrenceMessages';
 import { Communication } from '../components/Communication';
 import type { Status, Priority } from '../types';
 export function OccurrenceDetail() {
@@ -22,8 +23,13 @@ export function OccurrenceDetail() {
   const { occurrences, update, employees, busy } = useApp();
   const o = occurrences.find((x) => x.id === Number(id));
   const [tab, setTab] = useState('details');
+  const [params] = useSearchParams();
+  const targetMessage = params.get('mensagem');
+  useEffect(() => { if (targetMessage) setTab('communication'); }, [id, targetMessage]);
   const [note, setNote] = useState('');
   const [image, setImage] = useState('');
+  const [draftPriority, setDraftPriority] = useState<Priority | null>(null);
+  const [priorityReason, setPriorityReason] = useState('');
   if (!o)
     return (
       <>
@@ -67,7 +73,10 @@ export function OccurrenceDetail() {
         </button>
       </div>
       {tab === 'communication' ? (
-        <Communication key={o.id} occurrence={o} />
+        <div className="stack">
+          <OccurrenceMessages id={o.id} />
+          <Communication key={o.id} occurrence={o} />
+        </div>
       ) : (
         <div className="detail-grid">
           <div className="stack">
@@ -82,7 +91,9 @@ export function OccurrenceDetail() {
                   <span>
                     Localização<b>{o.address}</b>
                     <small>
-                      {o.lat.toFixed(6)}, {o.lng.toFixed(6)}
+                      {o.locationConfirmed === false
+                        ? 'Localização no mapa não confirmada'
+                        : o.lat.toFixed(6) + ', ' + o.lng.toFixed(6)}
                     </small>
                   </span>
                 </div>
@@ -184,20 +195,45 @@ export function OccurrenceDetail() {
                 Prioridade
                 <select
                   disabled={busy}
-                  value={o.priority}
-                  onChange={(e) =>
-                    update(
-                      o.id,
-                      { priority: e.target.value as Priority },
-                      `Prioridade alterada para ${e.target.value}.`,
-                    )
-                  }
+                  value={draftPriority || o.priority}
+                  onChange={(e) => setDraftPriority(e.target.value as Priority)}
                 >
                   {priorities.map((s) => (
                     <option key={s}>{s}</option>
                   ))}
                 </select>
               </label>
+              {draftPriority && draftPriority !== o.priority && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (
+                      await update(
+                        o.id,
+                        { priority: draftPriority, priorityJustification: priorityReason },
+                        '',
+                      )
+                    ) {
+                      setDraftPriority(null);
+                      setPriorityReason('');
+                    }
+                  }}
+                >
+                  <label className="field">
+                    Justificativa da prioridade
+                    <textarea
+                      required
+                      minLength={10}
+                      maxLength={350}
+                      value={priorityReason}
+                      onChange={(e) => setPriorityReason(e.target.value)}
+                    />
+                  </label>
+                  <button disabled={busy} className="button primary">
+                    Confirmar prioridade
+                  </button>
+                </form>
+              )}
               <label className="field">
                 Funcionário responsável
                 <select

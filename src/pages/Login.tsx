@@ -2,6 +2,7 @@ import { Anchor, ArrowRight, ShieldCheck, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { Brand } from '../components/Brand';
 export function Login() {
   const { session, login, bootstrapping, authError } = useApp();
   const [email, setEmail] = useState('ana.silva@exemplo.invalid');
@@ -13,10 +14,10 @@ export function Login() {
     <div className="login">
       <div className="login-story">
         <div className="brand">
-          <Anchor size={36} /> Santos conecta.
+          <Brand />
         </div>
         <div>
-          <div className="eyebrow">GESTÃO MUNICIPAL DE OCORRÊNCIAS</div>
+          <div className="eyebrow">CONECTANDO PESSOAS E CUIDADO URBANO</div>
           <h1>
             Atendimento urbano.
             <br />
@@ -76,6 +77,7 @@ export function Login() {
             {loading ? 'Autenticando...' : 'Entrar na plataforma'}
           </button>
         </form>
+        <p className="data-note"><a href="/cidadao">Sou cidadão: acessar meu espaço e o Conecta</a></p>
         <p className="data-note">
           Projeto acadêmico. O perfil de acesso é definido no cadastro do funcionário. A senha
           inicial é configurada durante a carga de demonstração.

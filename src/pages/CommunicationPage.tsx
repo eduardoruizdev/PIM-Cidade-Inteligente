@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MessageCircle, Sparkles } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { PageTitle, Panel } from '../components/ui';
+import { OccurrenceMessages } from '../components/OccurrenceMessages';
 import { Communication } from '../components/Communication';
 export function CommunicationPage({ assistant = false }: { assistant?: boolean }) {
   const { occurrences } = useApp();
@@ -35,7 +36,11 @@ export function CommunicationPage({ assistant = false }: { assistant?: boolean }
         </label>
         <span className="soft-label">{occurrences.length} registros disponíveis</span>
       </Panel>
-      <Communication key={o.id} occurrence={o} assistantOnly={assistant} />
+      <OccurrenceMessages key={o.id} id={o.id} />
+      <details className="email-archive">
+        <summary>Atendimento por e-mail e histórico anterior</summary>
+        <Communication key={o.id} occurrence={o} assistantOnly={assistant} />
+      </details>
     </>
   );
 }

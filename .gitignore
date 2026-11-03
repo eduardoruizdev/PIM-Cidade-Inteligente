@@ -12,3 +12,38 @@ appsettings.Development.json
 **/appsettings.Production.json
 *.user
 *.suo
+
+# Dependências
+.nuget/
+node_modules/
+
+# Compilação
+bin/
+obj/
+dist/
+build/
+
+# Arquivos temporários
+test-results/
+playwright-report/
+
+# Segurança
+**/appsettings.Local.json
+**/appsettings.Local.example.json
+.env
+.env.*
+!.env.example
+**/.data-protection/
+**/appsettings.Development.json
+**/appsettings.Production.json
+
+# IDE
+.vs/
+.vscode/
+.tools/
+mobile/build/
+mobile/.dart_tool/
+
+.flutter-home/
+mobile/android/app/google-services.json
+**/firebase-service-account*.json

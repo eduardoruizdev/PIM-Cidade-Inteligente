@@ -4,6 +4,9 @@ namespace SantosConecta.Domain.Entities;
 public class Funcionario
 {
     public int IdFuncionario { get; set; }
+    [MaxLength(20)] public string Telefone { get; set; } = "";
+    [MaxLength(100)] public string Cargo { get; set; } = "";
+    public bool Ativo { get; set; } = true;
     [Required, MaxLength(120)] public string Nome { get; set; } = "";
     [Required, EmailAddress, MaxLength(150)] public string Email { get; set; } = "";
     [Required, MaxLength(255)] public string SenhaHash { get; set; } = "";

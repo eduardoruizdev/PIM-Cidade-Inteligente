@@ -1,6 +1,7 @@
 import { request } from './http';
 import type { Occurrence, OccurrenceWrite, Citizen, Category, User, Status } from '../types';
 interface RawOccurrence {
+  localizacaoConfirmada: boolean;
   idOcorrencia: number;
   protocolo: string;
   titulo: string;
@@ -25,6 +26,7 @@ interface RawOccurrence {
 function map(o: RawOccurrence): Occurrence {
   return {
     id: o.idOcorrencia,
+    locationConfirmed: o.localizacaoConfirmada,
     protocol: o.protocolo,
     title: o.titulo,
     description: o.descricao,
@@ -85,10 +87,12 @@ export const apiOccurrences = {
 };
 export function occurrenceWrite(o: Occurrence): OccurrenceWrite {
   return {
+    justificativaPrioridade: o.priorityJustification,
     titulo: o.title,
     descricao: o.description,
     bairro: o.neighborhood,
     endereco: o.address,
+    localizacaoConfirmada: o.locationConfirmed !== false,
     latitude: o.lat,
     longitude: o.lng,
     status: o.status,

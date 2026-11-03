@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 namespace SantosConecta.Application.DTOs;
 
 public record CidadaoDto(int IdCidadao, string Nome, string Email, string Telefone);
-public record FuncionarioDto(int IdFuncionario, string Nome, string Email, string Perfil);
+public record FuncionarioDto(int IdFuncionario, string Nome, string Email, string Perfil, string Telefone = "", string Cargo = "", bool Ativo = true);
 public record CategoriaDto(int IdCategoria, string Nome);
 public class CriarCidadaoDto
 {

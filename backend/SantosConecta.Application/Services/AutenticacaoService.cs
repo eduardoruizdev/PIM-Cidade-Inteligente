@@ -9,7 +9,7 @@ public class AutenticacaoService(IFuncionarioRepository funcionarios, IPasswordH
     public async Task<FuncionarioDto?> EntrarAsync(LoginDto dto)
     {
         var f = await funcionarios.PorEmailAsync(dto.Email.Trim().ToLowerInvariant());
-        if (f is null) return null;
+        if (f is null || !f.Ativo) return null;
         var resultado = hasher.VerifyHashedPassword(f, f.SenhaHash, dto.Senha);
         return resultado == PasswordVerificationResult.Failed ? null : Mapeamento.Dto(f);
     }

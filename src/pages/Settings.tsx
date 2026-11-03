@@ -50,6 +50,7 @@ export function Settings() {
         </div>
         <div className="stack">
           <Panel title="Serviços do servidor">
+            <h3>Mensagens com o cidadão</h3><p className="description">Conversa privada em cada protocolo, com histórico, identificação da equipe e confirmação de leitura no aplicativo.</p><h3>Trânsito e localização</h3><p className="description">A busca de endereço é opcional. O trânsito depende da disponibilidade do provedor e sinaliza quando não há dados reais.</p>
             <h3>Comunicação por e-mail</h3>
             <p className="description">
               O servidor usa SMTP ou o modo simulado definido pelo administrador. O resultado de

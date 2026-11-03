@@ -18,8 +18,8 @@ import { referenceDate } from '../data/catalog';
 import { Panel } from '../components/ui';
 import type { Occurrence } from '../types';
 const colors = [
-  '#3478e5',
-  '#30b49c',
+  '#3f7130',
+  '#70bd54',
   '#f1ab48',
   '#8e83da',
   '#d66474',
@@ -83,8 +83,8 @@ export function AnalyticsCharts({ data, full = false }: { data: Occurrence[]; fu
               <AreaChart data={evolution} margin={{ top: 10, right: 15, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="blueFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3478e5" stopOpacity={0.22} />
-                    <stop offset="100%" stopColor="#3478e5" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#3f7130" stopOpacity={0.22} />
+                    <stop offset="100%" stopColor="#3f7130" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} stroke="#edf1f5" strokeDasharray="4 4" />
@@ -105,14 +105,14 @@ export function AnalyticsCharts({ data, full = false }: { data: Occurrence[]; fu
                 <Area
                   type="monotone"
                   dataKey="Registradas"
-                  stroke="#3478e5"
+                  stroke="#3f7130"
                   fill="url(#blueFill)"
                   strokeWidth={2.5}
                 />
                 <Area
                   type="monotone"
                   dataKey="Resolvidas"
-                  stroke="#30b49c"
+                  stroke="#70bd54"
                   fill="transparent"
                   strokeWidth={2}
                   strokeDasharray="4 3"
@@ -176,7 +176,7 @@ export function AnalyticsCharts({ data, full = false }: { data: Occurrence[]; fu
                   <Bar
                     dataKey="value"
                     name="Ocorrências"
-                    fill="#3478e5"
+                    fill="#3f7130"
                     radius={[0, 4, 4, 0]}
                     barSize={16}
                   />
@@ -202,7 +202,7 @@ export function AnalyticsCharts({ data, full = false }: { data: Occurrence[]; fu
                   />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="days" name="Dias" fill="#30b49c" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="days" name="Dias" fill="#70bd54" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -216,8 +216,8 @@ export function AnalyticsCharts({ data, full = false }: { data: Occurrence[]; fu
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Registradas" fill="#3478e5" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Resolvidas" fill="#30b49c" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Registradas" fill="#3f7130" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Resolvidas" fill="#70bd54" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

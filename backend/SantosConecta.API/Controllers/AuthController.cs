@@ -9,11 +9,12 @@ using SantosConecta.Application.Services;
 namespace SantosConecta.API.Controllers;
 
 [ApiController, Route("api/auth")]
-public class AuthController(AutenticacaoService service) : ControllerBase
+public class AuthController(AutenticacaoService service, PortalService portal) : ControllerBase
 {
     [HttpPost("login"), AllowAnonymous, EnableRateLimiting("login")]
-    public async Task<ActionResult<FuncionarioDto>> Entrar([FromBody] LoginDto dto)
+    public async Task<IActionResult> Entrar([FromBody] LoginDto dto, [FromQuery] string? publico = null)
     {
+        if(publico=="cidadao")return await LoginCidadao(dto);
         var funcionario = await service.EntrarAsync(dto);
         if (funcionario is null) return Unauthorized(new { message = "E-mail ou senha inválidos." });
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, funcionario.IdFuncionario.ToString()),
@@ -23,11 +24,22 @@ public class AuthController(AutenticacaoService service) : ControllerBase
             new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
         return Ok(funcionario);
     }
-    [HttpGet("me"), Authorize]
+    [HttpPost("cadastro"), AllowAnonymous, EnableRateLimiting("login")]
+    public async Task<IActionResult> Cadastro([FromBody] CadastroCidadaoDto dto) => Ok(await portal.CadastrarAsync(dto));
+    [HttpPost("cidadao/login"), AllowAnonymous, EnableRateLimiting("login")]
+    public async Task<IActionResult> LoginCidadao([FromBody] LoginDto dto)
+    {
+        var c = await portal.LoginAsync(dto);
+        if(c is null)return Unauthorized(new {message="E-mail ou senha inválidos."});
+        var claims=new[] {new Claim(ClaimTypes.NameIdentifier,c.IdCidadao.ToString()),new Claim(ClaimTypes.Name,c.Nome),new Claim(ClaimTypes.Role,"Cidadao")};
+        await HttpContext.SignInAsync("Cidadao",new ClaimsPrincipal(new ClaimsIdentity(claims,"Cidadao")));
+        return Ok(c);
+    }
+    [HttpGet("me"), Authorize(Roles="Administrador,Funcionário")]
     public ActionResult<FuncionarioDto> Me() => Ok(new FuncionarioDto(
         int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), User.Identity!.Name!,
         User.FindFirstValue(ClaimTypes.Email)!, User.FindFirstValue(ClaimTypes.Role)!));
     [HttpPost("logout"), Authorize]
     public async Task<IActionResult> Sair()
-    { await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme); return NoContent(); }
+    { await HttpContext.SignOutAsync(User.IsInRole("Cidadao") ? "Cidadao" : CookieAuthenticationDefaults.AuthenticationScheme); return NoContent(); }
 }

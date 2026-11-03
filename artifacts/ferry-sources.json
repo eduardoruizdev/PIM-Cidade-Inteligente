@@ -1,0 +1,52 @@
+{
+  "checkedAt": "2026-11-03T15:02:08.386Z",
+  "results": [
+    {
+      "url": "https://semil.sp.gov.br/travessias/travessias-automoveis/santos-guaruja/",
+      "status": 200,
+      "finalUrl": "https://semil.sp.gov.br/travessias/travessias-automoveis/santos-guaruja/",
+      "contentType": "text/html; charset=UTF-8",
+      "durationMs": 12581,
+      "title": "Travessias - Departamento Hidroviário de São Paulo",
+      "hasCrossingNames": true,
+      "hasInstabilityNotice": true
+    },
+    {
+      "url": "https://metroa.com.br/santos/balsas/santos-guaruja",
+      "status": 530,
+      "finalUrl": "https://metroa.com.br/santos/balsas/santos-guaruja",
+      "contentType": "text/html; charset=UTF-8",
+      "durationMs": 148,
+      "title": "Cloudflare Tunnel error | metroa.com.br | Cloudflare",
+      "hasCrossingNames": false,
+      "hasInstabilityNotice": false
+    },
+    {
+      "url": "https://semil.sp.gov.br/travessias/",
+      "status": 200,
+      "finalUrl": "https://semil.sp.gov.br/travessias/",
+      "contentType": "text/html; charset=UTF-8",
+      "durationMs": 12255,
+      "title": "Travessias - Departamento Hidroviário de São Paulo",
+      "hasCrossingNames": true,
+      "hasInstabilityNotice": false
+    },
+    {
+      "url": "https://www.dh.sp.gov.br/travessias/",
+      "durationMs": 27,
+      "error": "fetch failed",
+      "cause": "ENOTFOUND"
+    },
+    {
+      "url": "https://isnonline.com.br/balsas-ao-vivo/",
+      "status": 200,
+      "finalUrl": "https://isnonline.com.br/balsas-ao-vivo/",
+      "contentType": "text/html; charset=UTF-8",
+      "durationMs": 2518,
+      "title": "Balsas ao vivo: tempo de espera e câmeras agora | ISN Online",
+      "hasCrossingNames": true,
+      "hasInstabilityNotice": false
+    }
+  ],
+  "note": "Acessibilidade HTTP não comprova permissão de coleta nem atualidade da medição."
+}

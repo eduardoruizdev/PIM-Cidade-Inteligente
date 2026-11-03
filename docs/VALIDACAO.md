@@ -1,4 +1,111 @@
+# Validação — atualização de 02/11/2026
+
+## Modais, notificações e trânsito real
+
+Resultados executados nesta atualização, com SQL Server real. As seções datadas de 01/11 abaixo são históricas.
+
+| Verificação | Resultado observado |
+|---|---|
+| Build React | TypeScript e Vite aprovados após as alterações. |
+| Build ASP.NET Core | Solution aprovada, zero erros e avisos. |
+| Modal de funcionários | 10 verificações aprovadas: cadastro, edição sem trocar senha, foco, ESC, bloqueio durante salvamento, confirmação de situação, atualização da lista, login e autorização. Viewports de 390×844 e 1440×1000. |
+| API, React, serviços Flutter e SQL | 75 verificações aprovadas na regressão final com trânsito habilitado; inclui mensagens, avisos, isolamento entre cidadãos, leitura idempotente e individual, atribuição de responsável e restrições da gestão. |
+| Flutter analyze | Aprovado, sem problemas. |
+| Flutter test com SQL real | Cinco testes aprovados com RUN_REAL_SQL=true. Somente armazenamento seguro do dispositivo é substituído no runner; HTTP e persistência SQL são reais. |
+| Flutter web | Build JavaScript aprovado. Quatro testes padrão aprovados; o teste SQL é explicitamente ignorado nesse comando, sendo executado separadamente na regressão acima. |
+| TomTom real no React | Validado em Orla e Av. Ana Costa, com fluxo e incidentes disponíveis. Uma consulta retornou um incidente na Av. Ana Costa; a Orla retornou lista vazia. Isso representa o instante consultado, não uma condição permanente. |
+| Fluxo visual Flutter ↔ React | 15 verificações aprovadas na execução final com TomTom real: cadastro cidadão, ocorrência, resposta React, sino Flutter por polling, abertura e leitura, resposta Flutter, sino React e conversa destacada, persistência das duas mensagens, fluxo/incidentes TomTom e velocidade renderizada no Flutter. |
+| Banco | Script incremental 06 aplicado com sucesso; leituras da equipe persistem em LeituraMensagem sem alterar leitura de outros usuários. |
+| Proteção da chave | Arquivo appsettings.Local.example.json preservado no disco, retirado do índice Git e ignorado. Carregado somente em Development; chave somente no backend. |
+
+Evidências: `artifacts/validacao-modais.json`, `artifacts/validacao-v2.json`, `artifacts/validacao-transito-real.json` e `artifacts/validacao-flutter-web-v2.json` (conferir a data de cada relatório). Capturas: `modal-390.png`, `modal-1440.png`, `transito-real-react.png` e `transito-real-mobile.png` em artifacts.
+
+Ocorrências de execução corrigidas: processos antigos bloqueavam DLLs do backend; foram reiniciados somente os servidores deste projeto. Flutter precisou de execução fora do sandbox por bloqueio de telemetria. O endpoint TomTom Incident Details rejeitou `pt-BR` com HTTP 400; passou a responder após uso de `pt-PT`. Execuções intermediárias do teste visual falharam durante alternância de foco entre clientes e leitura do corpo HTTP na navegação Flutter; o runner passou a controlar o foco e capturar a resposta real antes de devolvê-la ao navegador. A central React também atualiza a lista ao abrir. Essas execuções intermediárias não são contabilizadas como aprovadas. Nenhuma chave foi impressa em logs ou relatórios.
+
+Limites: fluxo por trecho próximo à referência, sem cobertura completa das ruas; incidentes por recorte retangular, podendo alcançar municípios vizinhos. Sem push com app fechado. APK, Android em aparelho físico, GPS físico e WASM não foram validados nesta atualização. Não foram contratados serviços ou alterados planos. O contador de requisições TomTom em memória não substitui o controle financeiro da conta do provedor. Geocodificação externa oscilou entre nenhum resultado e resultado válido; ambos os caminhos foram exercitados sem simular localização.
+
+Configuração, autorização, regras de leitura e reprodução: [TRANSITO-E-NOTIFICACOES.md](TRANSITO-E-NOTIFICACOES.md).
+
+---
+
+# Registro anterior — Santos Conecta 2.0
+
+Data: 01/11/2026. Este registro distingue testes executados de integrações preparadas. Os resultados históricos no final não substituem esta validação.
+
+## Resultados observados nesta execução
+
+| Verificação | Resultado e alcance |
+|---|---|
+| Build React | Aprovado: TypeScript e build Vite de produção. |
+| Build ASP.NET Core | Aprovado: quatro projetos, zero erros e avisos na compilação final. |
+| flutter analyze | Aprovado após correção de seis regras de blocos em ifs. |
+| flutter test padrão | Quatro testes aprovados. O teste SQL é explicitamente ignorado quando RUN_REAL_SQL não é fornecido. |
+| Flutter com HTTP/SQL reais | Cinco testes aprovados com RUN_REAL_SQL=true. Nenhuma resposta HTTP ou consulta SQL simulada; somente armazenamento seguro do dispositivo em memória no runner sem aparelho. |
+| Regressão de cidadãos | 46 verificações aprovadas por scripts/test-citizen.mjs com SQL real. |
+| Bateria 2.0 | 64 verificações aprovadas na execução final, incluindo filtros e período. Relatório em artifacts/validacao-v2.json, com navegador React e SQL real. |
+| Gestão pela interface React | Cadastro, edição de cargo, desativação, reativação e login real da conta criada aprovados. artifacts/validacao-admin-web-v2.json. |
+| Fluxo Flutter web ↔ React | 11 verificações aprovadas. Cadastro/login Flutter, bairro/rua, geocodificação, protocolo, resolução no React, consulta sem 404, mensagem React → Flutter, resposta Flutter → React e trânsito indisponível. artifacts/validacao-flutter-web-v2.json. |
+| Build Flutter web | Build JavaScript de produção executado com sucesso; há avisos de dry-run WASM do armazenamento seguro. O build final foi repetido após os ajustes visuais. |
+| Priorização | Seis verificações determinísticas aprovadas em tests/priority. |
+| SQL Server real | Diagnóstico, scripts incrementais, gravações e consultas aprovados fora do sandbox. Nenhuma tabela foi recriada. |
+
+O teste nativo dos serviços Flutter deixou a ocorrência interna **147**, Cancelada, LocalizacaoConfirmada=0 e **duas mensagens**. Esses valores foram confirmados diretamente por SELECT no SQL Server, além das respostas HTTP do teste. Não foram apagados registros para obter um resultado de teste limpo. Ao encerrar, 22 contas fictícias da evolução 2.0 foram desativadas logicamente; contas preexistentes do usuário não foram alteradas.
+
+## Roteiro obrigatório e evidências
+
+1. Builds React e ASP.NET Core: executados, aprovados.
+2. Analyze e testes Flutter: executados; o teste SQL exige o modo explícito descrito acima.
+3. Cadastro/login de funcionário: por API e pelo formulário React, com hash persistido.
+4. Bloqueio administrativo: funcionário recebeu 403 em GET/POST/PUT de gestão. A rota operacional de responsáveis continua autorizada.
+5. Ocorrência cadastrada pelo Flutter: executado tanto pelos serviços Dart como pela interface Flutter web.
+6. Consulta pelo Flutter: lista e detalhes consultados com sessão do proprietário.
+7. Status alterado pelo React: executado pelo controle real da tela de detalhes.
+8. Status atualizado no Flutter sem 404: confirmado após resolução; o teste de serviços também percorreu Em análise, Em andamento, Resolvida e Cancelada.
+9. Histórico: eventos de status permanecem consultáveis, inclusive após encerramento.
+10. Equipe envia mensagem: formulário React e endpoint persistido.
+11. Flutter recebe: exibição na interface e consulta pelos serviços Dart.
+12. Cidadão responde: campo de resposta Flutter web e serviço Dart.
+13. React recebe a resposta: texto exibido na conversa após atualização periódica.
+14. Bairro e rua: seleção e pesquisa pela interface com bairro real do catálogo.
+15. Localização automática: Nominatim retornou alternativas reais para Avenida Ana/Anna Costa, Gonzaga; o cidadão confirmou uma alternativa e a API persistiu as coordenadas. A confirmação por número agora exige correspondência do número retornado, evitando marcar um trecho de rua como número exato.
+16. Trânsito React/Flutter: mapa de referência, região, legenda e estado de indisponibilidade verificados. **Dados de trânsito ao vivo não foram validados**.
+17. Persistência: SQL Server real, incluindo SELECT independente do registro criado pelos serviços Flutter.
+18. Desativação: sessão já aberta passou a receber 401; novo login recusado. Reativação permitiu login novamente.
+19. Isolamento da conversa: outro cidadão recebeu 404 em leitura e envio. Conteúdo vazio e HTML foram recusados com 400.
+
+## Falhas intermediárias e correções
+
+- Dentro do executor restrito, SqlClient falhou com SQL 20: servidor exige criptografia e o executor não consegue fornecê-la. O diagnóstico autorizado fora do sandbox conectou à mesma instância e banco, sem desativar TLS ou mudar permissões do SQL.
+- Flutter inicialmente não acessou seu arquivo de telemetria fora da pasta do projeto. O SDK foi executado com acesso autorizado ao cache existente.
+- Foram corrigidos um fechamento de JSX, um fechamento da tela de notificações e seis informações de lint após formatação Dart.
+- O servidor Vite de desenvolvimento excedeu o tempo de navegação em um teste. Os testes integrados passaram a usar o build estático com proxy local. Não foram substituídas respostas da API.
+- Os testes de interface precisaram respeitar os elementos semânticos agrupados e a renderização sob demanda do ListView Flutter. As capturas mostram a mensagem recebida; a resposta também foi verificada no React e SQL.
+- Uma execução já havia aprovado os testes Flutter reais quando a conexão HTTP ociosa do script Node expirou na limpeza lógica final da fixture. O script passou a fechar as conexões e a bateria integrada foi executada novamente com sucesso.
+
+## Não validado / pendências externas
+
+- TomTom real: falta chave autorizada e confirmação de plano, limites, termos e cobertura efetiva de Santos. A integração permanece desativada. O adaptador consulta um trecho por região; não fornece cobertura de todas as vias nem catálogo de incidentes.
+- Google Traffic Layer foi avaliado documentalmente, sem ativação de chave ou faturamento.
+- Groq real: os testes exercitaram o modo simulado identificado. Falta validar GROQ_API_KEY e modelo autorizado para chamadas reais.
+- SMTP real: não foram enviados e-mails externos; o recurso anterior foi preservado.
+- Android/iOS em aparelho: GPS, permissões do sistema, push (não implementado), APK e iOS não foram validados. A atualização de mensagens é periódica na tela aberta, sem promessa de notificações push.
+- Leitores de tela físicos e Libras: a semântica Flutter foi exercitada no navegador. Não foi encontrada integração de Libras ativa nos arquivos inspecionados; não foi removida uma integração existente. Testes com TalkBack/VoiceOver continuam pendentes.
+- Geocodificação não substitui cadastro municipal, não tem validação por polígono oficial e depende do conteúdo do OSM. Falhas permitem registrar endereço textual sem marcador.
+- WASM não é suportado pelo pacote atual de armazenamento seguro; o build web validado é JavaScript.
+
+## Evidências e reprodução
+
+Relatórios sem credenciais: artifacts/validacao-v2.json, artifacts/validacao-admin-web-v2.json e artifacts/validacao-flutter-web-v2.json. Capturas: artifacts/v2-dashboard.png, v2-mensagens-react.png, v2-funcionarios-react.png, v2-flutter-localizacao.png, v2-flutter-detalhes.png, v2-flutter-mensagens.png e v2-flutter-transito.png.
+
+[Execução, configurações e decisões](SANTOS-CONECTA-2.md) · [Arquivos da evolução](ARQUIVOS-V2.md).
+
+## Registro histórico preservado
+
+As seções abaixo descrevem versões anteriores.
+
 # Registro de validação
+
+> Registro histórico. A evolução posterior confirmou conexão SQL real e aplicou o script incremental. Veja [VALIDACAO-EVOLUCAO.md](VALIDACAO-EVOLUCAO.md) para os resultados atuais.
 
 Data: 31/10/2026. O quadro inicial registra a entrega anterior. A investigação específica do SQL Server está na seção de revalidação ao final, com resultados desta rodada. Não presumir que configurar o banco em outra máquina equivale a executar os testes.
 

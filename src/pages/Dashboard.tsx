@@ -8,32 +8,44 @@ import { emptyFilters, filterOccurrences, formatDate } from '../utils/metrics';
 import { PageTitle, Panel, Badge, Empty } from '../components/ui';
 import { AnalyticsCharts } from '../components/AnalyticsCharts';
 import { CityMap } from '../components/CityMap';
+import { TerritorialEquity } from '../components/TerritorialEquity';
 import { statuses, priorities } from '../data/catalog';
 import type { DashboardSummary } from '../types';
 export function Dashboard() {
   const { occurrences } = useApp();
   const [status, setStatus] = useState('');
+  const [inicio, setInicio] = useState('');
+  const [fim, setFim] = useState('');
   const [priority, setPriority] = useState('');
   const [expanded, setExpanded] = useState(false);
   const query = new URLSearchParams();
+  if (inicio) query.set('inicio', inicio);
+  if (fim) query.set('fim', fim);
   if (status) query.set('status', status);
   if (priority) query.set('prioridade', priority);
   const summary = useQuery({
-    queryKey: ['dashboard', 'resumo', status, priority],
+    queryKey: ['dashboard', 'resumo', status, priority, inicio, fim],
     queryFn: () => request<DashboardSummary>(`/api/dashboard/resumo?${query}`),
   });
   const neighborhoods = useQuery({
-    queryKey: ['dashboard', 'bairros', status, priority],
+    queryKey: ['dashboard', 'bairros', status, priority, inicio, fim],
     queryFn: () =>
       request<{ bairro: string; quantidade: number }[]>(`/api/dashboard/bairros?${query}`),
   });
   const data = useMemo(
-    () => filterOccurrences(occurrences, { ...emptyFilters, period: '', status, priority }),
-    [occurrences, status, priority],
+    () =>
+      filterOccurrences(occurrences, { ...emptyFilters, period: '', status, priority }).filter(
+        (o) => (!inicio || o.date.slice(0, 10) >= inicio) && (!fim || o.date.slice(0, 10) <= fim),
+      ),
+    [occurrences, status, priority, inicio, fim],
   );
   const cards = [
     ['Total de reclamações', summary.data?.total, ClipboardList, 'blue'],
-    ['Aguardando análise', summary.data?.aguardandoAnalise, FolderOpen, 'orange'],
+    ['Abertas', summary.data?.abertas, FolderOpen, 'orange'],
+    ['Em análise', summary.data?.emAnalise, FolderOpen, 'orange'],
+    ['Atrasadas (mais de 7 dias)', summary.data?.atrasadas, Clock3, 'orange'],
+    ['Resolução média (horas)', summary.data?.tempoMedioResolucaoHoras, Clock3, 'green'],
+    ['Conversas aguardando resposta', summary.data?.mensagensPendentes, FolderOpen, 'blue'],
     ['Em andamento', summary.data?.emAndamento, Clock3, 'purple'],
     ['Resolvidas', summary.data?.resolvidas, CheckCheck, 'green'],
   ] as const;
@@ -48,6 +60,12 @@ export function Dashboard() {
         <span>{new Date().toLocaleDateString('pt-BR', { dateStyle: 'long' })}</span>
       </div>
       <div className="filterbar">
+        <label>
+          De <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+        </label>
+        <label>
+          Até <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} />
+        </label>
         <label>
           Status{' '}
           <select
@@ -79,6 +97,8 @@ export function Dashboard() {
           onClick={() => {
             setStatus('');
             setPriority('');
+            setInicio('');
+            setFim('');
           }}
         >
           Limpar filtros
@@ -153,6 +173,7 @@ export function Dashboard() {
         </Panel>
       </div>
       <AnalyticsCharts data={data} full={expanded} />
+      <TerritorialEquity />
       <button className="button more-analytics" onClick={() => setExpanded(!expanded)}>
         {expanded ? 'Recolher indicadores complementares' : 'Ver indicadores complementares'}
       </button>

@@ -1,0 +1,12 @@
+{
+  "Weather": {
+    "WorkerEnabled": false,
+    "PushEnabled": false,
+    "FirebaseServiceAccountPath": ""
+  },
+  "Traffic": {
+    "Enabled": false,
+    "IncidentsEnabled": true,
+    "MaxRequestsPerMonth": 2000
+  }
+}

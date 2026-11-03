@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    watch: { ignored: ['**/.tools/**', '**/mobile/**', '**/backend/**', '**/.nuget/**'] },
     host: '127.0.0.1',
-    proxy: { '/api': { target: 'http://localhost:5080', changeOrigin: true } },
+    proxy: { '/api': { target: process.env.API_PROXY_TARGET || 'http://localhost:5080', changeOrigin: true } },
   },
   build: {
     rolldownOptions: {

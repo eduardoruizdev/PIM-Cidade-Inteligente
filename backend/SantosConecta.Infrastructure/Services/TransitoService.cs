@@ -1,0 +1,97 @@
+﻿using System.Globalization;
+using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+namespace SantosConecta.Infrastructure.Services;
+
+public record RegiaoTransito(string Nome, double Latitude, double Longitude);
+public record PontoTransito(double Latitude, double Longitude);
+public record TrechoTransito(string Regiao, int VelocidadeAtual, int VelocidadeLivre, bool Interditado, List<PontoTransito> Coordenadas);
+public record IncidenteTransito(string Id, string Descricao, string De, string Ate, bool Interditado, List<PontoTransito> Coordenadas);
+public record EstadoTransito(bool Disponivel, string Provedor, string Mensagem, DateTime? UltimaAtualizacao, bool IncidentesDisponiveis, RegiaoTransito[] Regioes, List<TrechoTransito> Trechos)
+{
+    public List<IncidenteTransito> Incidentes { get; init; } = [];
+    public DateTime? ValidoAte { get; init; }
+    public string MensagemIncidentes { get; init; } = "Incidentes indisponíveis.";
+}
+public class TransitoService(HttpClient http, IConfiguration config, IMemoryCache cache)
+{
+    private static readonly SemaphoreSlim Gate = new(1, 1);
+    public static readonly RegiaoTransito[] Regioes = [new("Orla", -23.972, -46.327), new("Centro", -23.936, -46.329), new("Zona Noroeste", -23.941, -46.371), new("Ponta da Praia", -23.985, -46.301), new("Área Continental", -23.872, -46.174), new("Av. Ana Costa", -23.958, -46.333), new("Av. Conselheiro Nébias", -23.955, -46.326)];
+    private async Task<JsonDocument?> ConsultarJsonAsync(string endpoint, string key, CancellationToken ct)
+    {
+        // Não armazenar respostas de trânsito: respeita inclusive Cache-Control: max-age=0.
+        var budgetKey = "traffic-budget:" + DateTime.UtcNow.ToString("yyyyMM", CultureInfo.InvariantCulture);
+        var used = cache.Get<int>(budgetKey);
+        if (used >= Math.Clamp(config.GetValue("Traffic:MaxRequestsPerMonth", 2000), 0, 20000)) return null;
+        cache.Set(budgetKey, used + 1, TimeSpan.FromDays(32));
+        using var req = new HttpRequestMessage(HttpMethod.Get, "https://api.tomtom.com/traffic/services/" + endpoint + "&key=" + Uri.EscapeDataString(key));
+        using var response = await http.SendAsync(req, ct);
+        if (!response.IsSuccessStatusCode) return null;
+        var text = await response.Content.ReadAsStringAsync(ct);
+        return JsonDocument.Parse(text);
+    }
+    public async Task<EstadoTransito> ConsultarAsync(string? regiao, CancellationToken ct)
+    {
+        var r = Regioes.FirstOrDefault(r => r.Nome == (regiao ?? "Orla")) ?? throw new ArgumentException("Região inválida.");
+        EstadoTransito Indisponivel(string mensagem = "Dados de trânsito indisponíveis. Tente novamente em instantes.") => new(false, "TomTom", mensagem, null, false, Regioes, []);
+        var key = config["TOMTOM_API_KEY"];
+        if (!config.GetValue("Traffic:Enabled", false) || string.IsNullOrWhiteSpace(key)) return Indisponivel("Dados de trânsito indisponíveis. A integração depende de configuração do serviço.");
+        await Gate.WaitAsync(ct);
+        try
+        {
+            // Evita cliques excessivos sem reutilizar dados que o provedor proíbe armazenar.
+            var cooldown = "traffic-cooldown:" + r.Nome;
+            if (cache.Get<bool>(cooldown)) return Indisponivel("Aguarde alguns segundos antes de consultar esta região novamente.");
+            cache.Set(cooldown, true, TimeSpan.FromSeconds(10));
+            var point = r.Latitude.ToString(CultureInfo.InvariantCulture) + "," + r.Longitude.ToString(CultureInfo.InvariantCulture);
+            List<TrechoTransito> segments = [];
+            List<IncidenteTransito> incidents = [];
+            bool incidentsAvailable = false;
+            var updated = DateTime.UtcNow;
+            try
+            {
+                using var json = await ConsultarJsonAsync("4/flowSegmentData/relative0/14/json?point=" + point + "&unit=KMPH", key, ct);
+                if (json is not null)
+                {
+                    var flow = json.RootElement.GetProperty("flowSegmentData");
+                    var points = flow.GetProperty("coordinates").GetProperty("coordinate").EnumerateArray().Select(p => new PontoTransito(p.GetProperty("latitude").GetDouble(), p.GetProperty("longitude").GetDouble())).ToList();
+                    if (points.Count >= 2) segments.Add(new(r.Nome, flow.GetProperty("currentSpeed").GetInt32(), flow.GetProperty("freeFlowSpeed").GetInt32(), flow.GetProperty("roadClosure").GetBoolean(), points));
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException or KeyNotFoundException or InvalidOperationException) { if (ct.IsCancellationRequested) throw; }
+            if (config.GetValue("Traffic:IncidentsEnabled", true))
+            {
+                try
+                {
+                    // Recorte local da região; não é um polígono oficial do município.
+                    var bbox = string.Join(",", new[] { r.Longitude - .015, r.Latitude - .012, r.Longitude + .015, r.Latitude + .012 }.Select(v => v.ToString(CultureInfo.InvariantCulture)));
+                    var fields = Uri.EscapeDataString("{incidents{geometry{type,coordinates},properties{id,iconCategory,events{description},from,to}}}");
+                    using var json = await ConsultarJsonAsync("5/incidentDetails?bbox=" + bbox + "&fields=" + fields + "&language=pt-PT&timeValidityFilter=present", key, ct);
+                    if (json is not null)
+                    {
+                        foreach (var incident in json.RootElement.GetProperty("incidents").EnumerateArray())
+                        {
+                            var p = incident.GetProperty("properties");
+                            var g = incident.GetProperty("geometry");
+                            List<PontoTransito> points = [];
+                            if (g.GetProperty("type").GetString() == "LineString") points = g.GetProperty("coordinates").EnumerateArray().Select(v => new PontoTransito(v[1].GetDouble(), v[0].GetDouble())).ToList();
+                            if (g.GetProperty("type").GetString() == "Point") { var v = g.GetProperty("coordinates"); points.Add(new(v[1].GetDouble(), v[0].GetDouble())); }
+                            incidents.Add(new(p.GetProperty("id").GetString() ?? "", string.Join(" · ", p.GetProperty("events").EnumerateArray().Select(e => e.GetProperty("description").GetString())), p.TryGetProperty("from", out var from) ? from.GetString() ?? "" : "", p.TryGetProperty("to", out var to) ? to.GetString() ?? "" : "", p.GetProperty("iconCategory").GetInt32() == 8, points));
+                        }
+                        incidentsAvailable = true;
+                    }
+                }
+                catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException or KeyNotFoundException or InvalidOperationException) { if (ct.IsCancellationRequested) throw; }
+            }
+            if (segments.Count == 0 && !incidentsAvailable) return Indisponivel();
+            return new(segments.Count > 0, "TomTom", segments.Count > 0 ? "Trecho próximo à referência selecionada. As cores não cobrem todas as vias de Santos." : "Fluxo indisponível nesta região. Consulte os incidentes disponíveis.", updated, incidentsAvailable, Regioes, segments)
+            {
+                Incidentes = incidents,
+                ValidoAte = updated.AddSeconds(120),
+                MensagemIncidentes = incidentsAvailable ? (incidents.Count == 0 ? "Nenhum incidente informado pelo provedor no recorte consultado." : "Incidentes no entorno da região. O recorte pode incluir vias de municípios vizinhos.") : "Incidentes indisponíveis. Não é possível afirmar ausência de interdições."
+            };
+        }
+        finally { Gate.Release(); }
+    }
+}

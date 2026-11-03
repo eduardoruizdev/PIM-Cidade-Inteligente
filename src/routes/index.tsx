@@ -9,8 +9,12 @@ import { OccurrenceForm } from '../pages/OccurrenceForm';
 import { CommunicationPage } from '../pages/CommunicationPage';
 import { Employees } from '../pages/Employees';
 import { Settings } from '../pages/Settings';
+import { TrafficPage } from '../pages/TrafficPage';
+import { AttendanceQueue } from '../pages/AttendanceQueue';
+import { CitizenPortal } from '../pages/CitizenPortal';
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/cidadao', element: <CitizenPortal /> },
   {
     element: <AdminLayout />,
     errorElement: (
@@ -24,6 +28,8 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <Dashboard /> },
+      { path: '/transito', element: <TrafficPage /> },
+      { path: '/fila', element: <AttendanceQueue /> },
       { path: '/mapa', element: <MapPage /> },
       { path: '/ocorrencias', element: <Occurrences /> },
       { path: '/ocorrencias/nova', element: <OccurrenceForm /> },

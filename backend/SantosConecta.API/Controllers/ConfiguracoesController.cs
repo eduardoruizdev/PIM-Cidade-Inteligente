@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace SantosConecta.API.Controllers;
 
-[ApiController, Route("api/configuracoes"), Authorize]
+[ApiController, Route("api/configuracoes"), Authorize(Roles="Administrador,Funcionário")]
 public class ConfiguracoesController(IConfiguration config) : ControllerBase
 {
     [HttpGet]

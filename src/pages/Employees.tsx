@@ -1,149 +1,210 @@
 import { useState } from 'react';
-import { Users, Mail, Building2, CheckCheck, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useApp } from '../contexts/AppContext';
-
-import { PageTitle, Panel, Badge } from '../components/ui';
-import { Link } from 'react-router-dom';
+import { request } from '../services/http';
+import { PageTitle, Panel } from '../components/ui';
+import { Modal } from '../components/Modal';
+type Employee = {
+  idFuncionario: number;
+  nome: string;
+  email: string;
+  telefone: string;
+  cargo: string;
+  perfil: string;
+  ativo: boolean;
+  senha?: string;
+};
+const blank: Employee = {
+  idFuncionario: 0,
+  nome: '',
+  email: '',
+  telefone: '',
+  cargo: '',
+  perfil: 'Funcionário',
+  ativo: true,
+};
 export function Employees() {
-  const { occurrences, update, session, employees, busy } = useApp();
-  const [selected, setSelected] = useState('');
-  const [query, setQuery] = useState('');
-  const [assignment, setAssignment] = useState('');
-  const employee = employees.find((e) => e.name === selected);
-  if (session !== 'Administrador')
-    return (
-      <>
-        <PageTitle title="Gestão de funcionários" description="Área administrativa." />
-        <div className="info-box">
-          O perfil Funcionário tem acesso às reclamações e ao atendimento. Entre como Administrador
-          para consultar esta visão da equipe.
-        </div>
-      </>
-    );
+  const { session, retry } = useApp();
+  const [draft, setDraft] = useState<Employee | null>(null);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [success, setSuccess] = useState('');
+  const query = useQuery({
+    queryKey: ['equipe-gestao'],
+    queryFn: () => request<Employee[]>('/api/funcionarios'),
+    enabled: session === 'Administrador',
+  });
+  if (session !== 'Administrador') return <p role="alert">Acesso exclusivo do administrador.</p>;
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const original = query.data?.find((f) => f.idFuncionario === draft?.idFuncionario);
+    if (original && original.ativo !== draft?.ativo) { setConfirm(true); return; }
+    await persist();
+  }
+  async function persist() {
+    if (!draft) return;
+    setBusy(true);
+    setError('');
+    try {
+      await request('/api/funcionarios' + (draft.idFuncionario ? '/' + draft.idFuncionario : ''), {
+        method: draft.idFuncionario ? 'PUT' : 'POST',
+        body: JSON.stringify({ ...draft, senha: draft.senha || null }),
+      });
+      setDraft(null);
+      setConfirm(false);
+      setSuccess('Funcionário salvo com sucesso.');
+      await query.refetch();
+      retry();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
       <PageTitle
-        title="Equipe e funcionários"
-        description="Pessoas conectadas para entregar um atendimento melhor."
+        title="Gestão de funcionários"
+        description="Contas, responsabilidades e acesso da equipe municipal."
         action={
-          <span className="button">
-            <Users size={16} />
-            {employees.length} funcionários cadastrados
-          </span>
+          <button
+            className="button primary"
+            onClick={() => {
+              setDraft({ ...blank });
+              setError('');
+            }}
+          >
+            Cadastrar funcionário
+          </button>
         }
       />
-      <Panel>
-        <div className="list-toolbar">
-          <h2>Equipe municipal</h2>
-          <input
-            aria-label="Buscar funcionário"
-            placeholder="Buscar por nome ou setor..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div className="employee-grid">
-          {employees
-            .filter((e) => `${e.name} ${e.sector}`.toLowerCase().includes(query.toLowerCase()))
-            .map((e) => {
-              const assigned = occurrences.filter((o) => o.employee === e.name);
-              const done = assigned.filter((o) => o.status === 'Resolvida').length;
-              return (
-                <button className="employee-card" key={e.name} onClick={() => setSelected(e.name)}>
-                  <div className="avatar large">{e.initials}</div>
-                  <h3>{e.name}</h3>
-                  <p>{e.sector}</p>
-                  <Badge>{e.role}</Badge>
-                  <div className="employee-stats">
-                    <div>
-                      <b>{assigned.length}</b>
-                      <small>Atribuídas</small>
-                    </div>
-                    <div>
-                      <b>{done}</b>
-                      <small>Concluídas</small>
-                    </div>
-                    <div>
-                      <b>{Math.round((done / Math.max(assigned.length, 1)) * 100)}%</b>
-                      <small>Resolução</small>
-                    </div>
-                  </div>
-                  <span className="text-button">Visualizar perfil →</span>
-                </button>
-              );
-            })}
+      {success && <p className="info-box" role="status">{success}</p>}
+      <Panel title="Equipe de atendimento">
+        <label className="field">
+          Buscar por nome, e-mail ou cargo
+          <input value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        {query.isLoading && <p role="status">Carregando equipe…</p>}
+        {query.error && <p role="alert">{query.error.message}</p>}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Funcionário</th>
+                <th>Cargo</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {query.data
+                ?.filter((f) =>
+                  (f.nome + ' ' + f.email + ' ' + f.cargo)
+                    .toLowerCase()
+                    .includes(search.toLowerCase()),
+                )
+                .map((f) => (
+                  <tr key={f.idFuncionario}>
+                    <td>
+                      <b>{f.nome}</b>
+                      <br />
+                      {f.email}
+                      <br />
+                      {f.telefone}
+                    </td>
+                    <td>{f.cargo || 'Não informado'}</td>
+                    <td>{f.perfil}</td>
+                    <td>{f.ativo ? 'Ativo' : 'Inativo'}</td>
+                    <td>
+                      <button
+                        className="button"
+                        onClick={() => {
+                          setDraft({ ...f });
+                          setError('');
+                        }}
+                      >
+                        Editar / alterar acesso
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
-      {employee && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Perfil do funcionário"
-        >
-          <div className="profile-modal">
-            <button
-              className="icon-button close-modal"
-              aria-label="Fechar perfil"
-              onClick={() => setSelected('')}
-            >
-              <X />
-            </button>
-            <div className="avatar large">{employee.initials}</div>
-            <h2>{employee.name}</h2>
-            <p>
-              <Building2 size={15} /> {employee.sector}
-            </p>
-            <p>
-              <Mail size={15} /> {employee.email}
-            </p>
-            <Badge>{employee.role}</Badge>
-            <h3 className="subheading">
-              <CheckCheck size={16} />
-              Ocorrências atribuídas
-            </h3>
-            <div className="assigned-list">
-              {occurrences
-                .filter((o) => o.employee === employee.name)
-                .map((o) => (
-                  <Link key={o.id} to={`/ocorrencias/${o.id}`}>
-                    <span>
-                      #{o.protocol} · {o.title}
-                    </span>
-                    <Badge>{o.status}</Badge>
-                  </Link>
-                ))}
-            </div>
+      {draft && (
+        <Modal title={draft.idFuncionario ? 'Editar funcionário' : 'Novo funcionário'} busy={busy} onClose={() => setDraft(null)}>
+          <form onSubmit={save} className="employee-form">
+            <fieldset disabled={busy} className="employee-fields">
+            {(['nome', 'email', 'telefone', 'cargo'] as const).map((key) => (
+              <label className="field" key={key}>
+                {{ nome: 'Nome completo', email: 'E-mail', telefone: 'Telefone', cargo: 'Cargo' }[key]}
+                <input
+                  required
+                  maxLength={
+                    key === 'nome' ? 120 : key === 'email' ? 150 : key === 'telefone' ? 20 : 100
+                  }
+                  type={key === 'email' ? 'email' : key === 'telefone' ? 'tel' : 'text'}
+                  value={draft[key]}
+                  onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                />
+              </label>
+            ))}
             <label className="field">
-              Atribuir reclamação
-              <select value={assignment} onChange={(e) => setAssignment(e.target.value)}>
-                <option value="">Selecione uma ocorrência</option>
-                {occurrences
-                  .filter((o) => o.employee !== employee.name)
-                  .map((o) => (
-                    <option key={o.id} value={o.id}>
-                      #{o.protocol} · {o.title}
-                    </option>
-                  ))}
+              {draft.idFuncionario ? 'Nova senha (opcional)' : 'Senha inicial'}
+              <input
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required={!draft.idFuncionario}
+                value={draft.senha || ''}
+                onChange={(e) => setDraft({ ...draft, senha: e.target.value })}
+              />
+              <small>Mínimo 12 caracteres com maiúsculas, minúsculas, números e símbolos.</small>
+            </label>
+            <label className="field">
+              Perfil
+              <select
+                value={draft.perfil}
+                onChange={(e) => setDraft({ ...draft, perfil: e.target.value })}
+              >
+                <option>Funcionário</option>
+                <option>Administrador</option>
               </select>
             </label>
-            <button
-              className="button primary"
-              disabled={!assignment || busy}
-              onClick={async () => {
-                const saved = await update(
-                  Number(assignment),
-                  { employee: employee.name },
-                  `Ocorrência atribuída a ${employee.name}.`,
-                );
-                if (saved) setAssignment('');
-              }}
-            >
-              Atribuir ocorrência
-            </button>
-          </div>
-        </div>
+            <label className="field">
+              Status
+              <select
+                aria-label="Status do funcionário"
+                value={String(draft.ativo)}
+                onChange={(e) => setDraft({ ...draft, ativo: e.target.value === 'true' })}
+              >
+                <option value="true">Ativo</option>
+                <option value="false">Inativo — preservar histórico</option>
+              </select>
+            </label>
+            </fieldset>
+            {error && <p role="alert" className="api-status error">{error}</p>}
+            <div className="form-actions">
+              <button disabled={busy} className="button primary">
+                {busy ? 'Salvando…' : 'Salvar funcionário'}
+              </button>
+              <button type="button" disabled={busy} className="button" onClick={() => setDraft(null)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
+      {confirm && draft && <Modal compact title={draft.ativo ? 'Reativar funcionário?' : 'Desativar funcionário?'} busy={busy} onClose={() => setConfirm(false)}>
+        <p>{draft.ativo ? 'A conta voltará a ter acesso ao sistema.' : 'A conta perderá acesso ao sistema. O histórico será preservado.'}</p>
+        {error && <p role="alert">{error}</p>}
+        <div className="form-actions"><button className="button" disabled={busy} onClick={() => setConfirm(false)}>Cancelar</button><button className="button primary" disabled={busy} onClick={() => void persist()}>{busy ? 'Salvando…' : 'Confirmar alteração'}</button></div>
+      </Modal>}
     </>
   );
 }

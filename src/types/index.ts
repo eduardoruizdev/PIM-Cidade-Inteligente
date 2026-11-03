@@ -6,6 +6,8 @@ export interface Event {
   author: string;
 }
 export interface Occurrence {
+  locationConfirmed?: boolean;
+  priorityJustification?: string;
   id: number;
   protocol: string;
   title: string;
@@ -62,6 +64,8 @@ export interface Category {
   nome: string;
 }
 export interface OccurrenceWrite {
+  localizacaoConfirmada?: boolean;
+  justificativaPrioridade?: string;
   titulo: string;
   descricao: string;
   bairro: string;
@@ -86,6 +90,11 @@ export interface EmailRecord {
   funcionario: string;
 }
 export interface DashboardSummary {
+  abertas: number;
+  emAnalise: number;
+  atrasadas: number;
+  tempoMedioResolucaoHoras: number | null;
+  mensagensPendentes: number;
   total: number;
   aguardandoAnalise: number;
   emAndamento: number;

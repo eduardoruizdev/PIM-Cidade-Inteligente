@@ -8,6 +8,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useNavigate } from 'react-router-dom';
 import type { Occurrence } from '../types';
+import { TerritorialLayer } from './TerritorialLayer';
 export const severityColors: Record<string, string> = {
   Baixa: '#28a888',
   Média: '#4285e4',
@@ -81,17 +82,34 @@ function Layers({
   return null;
 }
 export function CityMap({ data, compact = false }: { data: Occurrence[]; compact?: boolean }) {
+  data = data.filter(o => o.locationConfirmed !== false && (o.lat !== 0 || o.lng !== 0));
   const [heat, setHeat] = useState(false);
+  const [territory, setTerritory] = useState(false);
   const [visible, setVisible] = useState(0);
   const [showCategories, setShowCategories] = useState(false);
   return (
     <div className={`city-map ${compact ? 'compact' : ''}`}>
       <div className="map-mode">
-        <button className={!heat ? 'selected' : ''} onClick={() => setHeat(false)}>
+        <button
+          className={!heat && !territory ? 'selected' : ''}
+          onClick={() => {
+            setHeat(false);
+            setTerritory(false);
+          }}
+        >
           Marcadores
         </button>
-        <button className={heat ? 'selected' : ''} onClick={() => setHeat(true)}>
+        <button
+          className={heat && !territory ? 'selected' : ''}
+          onClick={() => {
+            setHeat(true);
+            setTerritory(false);
+          }}
+        >
           Mapa de calor
+        </button>
+        <button className={territory ? 'selected' : ''} onClick={() => setTerritory(true)}>
+          Indicadores territoriais
         </button>
         <button
           aria-expanded={showCategories}
@@ -111,7 +129,11 @@ export function CityMap({ data, compact = false }: { data: Occurrence[]; compact
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Layers data={data} heat={heat} onVisible={setVisible} />
+        {territory ? (
+          <TerritorialLayer />
+        ) : (
+          <Layers data={data} heat={heat} onVisible={setVisible} />
+        )}
       </MapContainer>
       {showCategories && (
         <div className="map-category-legend">
@@ -135,7 +157,9 @@ export function CityMap({ data, compact = false }: { data: Occurrence[]; compact
       </div>
       <div className="map-count">
         <span className="live-dot" />
-        {visible} ocorrências na região visível
+        {territory
+          ? 'SIMULAÇÃO ACADÊMICA · Pontos aproximados, sem polígonos oficiais'
+          : `${visible} ocorrências na região visível`}
       </div>
     </div>
   );
