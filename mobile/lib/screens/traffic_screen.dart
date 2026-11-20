@@ -226,6 +226,16 @@ class _TrafficScreenState extends State<TrafficScreen>
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName:
                                 'br.edu.santosconecta.mobile'),
+                        if (s.data?['camadaMapaDisponivel'] == true)
+                          TileLayer(
+                              key: ValueKey('tomtom-flow-$region-${ticks ~/ 12}'),
+                              urlTemplate: widget.api.trafficTileUrl,
+                              tileProvider: NetworkTileProvider(
+                                  headers: widget.api.trafficTileHeaders),
+                              maxNativeZoom: 18,
+                              tileDisplay: TileDisplay.fadeIn(duration: Duration(milliseconds: 180)),
+                              userAgentPackageName:
+                                  'br.edu.santosconecta.mobile'),
                         if (!region.startsWith('Av. ') && selectedRoad == null)
                           PolygonLayer(polygons: [
                             Polygon(

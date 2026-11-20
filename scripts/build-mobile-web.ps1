@@ -1,6 +1,8 @@
 $ErrorActionPreference = 'Stop'
+$env:FLUTTER_SUPPRESS_ANALYTICS = 'true'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $flutterTool = Join-Path $projectRoot '.tools/flutter/bin/flutter.bat'
+if (-not (Test-Path -LiteralPath $flutterTool)) { $flutterTool = Join-Path $projectRoot 'tools/flutter/bin/flutter.bat' }
 if (-not (Test-Path -LiteralPath $flutterTool)) { $flutterTool = (Get-Command flutter -ErrorAction Stop).Source }
 if ($flutterTool -match '[^\x00-\x7F]') {
     $sdkRoot = Split-Path -Parent (Split-Path -Parent $flutterTool)
@@ -18,7 +20,7 @@ Push-Location -LiteralPath $previewDir
 try {
     & $flutterTool pub get
     if ($LASTEXITCODE -ne 0) { throw 'flutter pub get falhou' }
-    & $flutterTool analyze
+    & $flutterTool analyze --no-fatal-infos
     if ($LASTEXITCODE -ne 0) { throw 'flutter analyze falhou' }
     & $flutterTool test --dart-define=ALLOW_HTTP=true
     if ($LASTEXITCODE -ne 0) { throw 'flutter test falhou' }

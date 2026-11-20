@@ -1,5 +1,9 @@
 # Interface, notificações e trânsito — 02/11/2026
 
+## Fluxo TomTom cobrindo o mapa
+
+Além da consulta de segmento próximo a uma referência, React e Flutter podem exibir a camada de Raster Flow Tiles `relative0` da TomTom em todas as vias com dados nos tiles visíveis. O backend a serve em `/api/transito/tiles/flow/{z}/{x}/{y}`; a chave permanece no servidor, a rota requer sessão autenticada e as respostas não são armazenadas. O limite local padrão é 10.000 tiles por mês (`Traffic:MaxTileRequestsPerMonth`), separado das consultas de segmento/incidentes. Esse contador em memória reinicia quando a API reinicia e serve como proteção local, não como controle de faturamento. Configure-o conforme o plano e o consumo esperado; a cota e cobrança da conta TomTom prevalecem. A cobertura depende das vias e dos dados fornecidos pela TomTom para cada tile e não garante que toda rua de Santos terá uma condição.
+
 ## Executar os dois clientes
 
 Na raiz do projeto, mantenha três terminais abertos:
@@ -33,7 +37,8 @@ Propriedades que devem existir no objeto principal do JSON, junto das configura�
   "Traffic": {
     "Enabled": true,
     "IncidentsEnabled": true,
-    "MaxRequestsPerMonth": 2000
+    "MaxRequestsPerMonth": 2000,
+    "MaxTileRequestsPerMonth": 10000
   }
 }
 ```
@@ -44,6 +49,7 @@ Alternativa no terminal da API:
 $env:TOMTOM_API_KEY = 'CHAVE_LOCAL'
 $env:Traffic__Enabled = 'true'
 $env:Traffic__IncidentsEnabled = 'true'
+$env:Traffic__MaxTileRequestsPerMonth = '10000'
 ```
 
 Reinicie a API depois de alterar a configuração. A chave nunca é entregue ao React ou ao Flutter; os clientes consultam `/api/transito?regiao=Orla`. Os loggers HTTP desse adaptador são removidos para não registrar URLs autenticadas.

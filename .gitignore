@@ -41,6 +41,7 @@ playwright-report/
 .vs/
 .vscode/
 .tools/
+tools/flutter/
 mobile/build/
 mobile/.dart_tool/
 

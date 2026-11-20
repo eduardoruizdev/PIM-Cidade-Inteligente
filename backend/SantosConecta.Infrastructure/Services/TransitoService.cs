@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 namespace SantosConecta.Infrastructure.Services;
@@ -13,10 +14,12 @@ public record EstadoTransito(bool Disponivel, string Provedor, string Mensagem, 
     public List<IncidenteTransito> Incidentes { get; init; } = [];
     public DateTime? ValidoAte { get; init; }
     public string MensagemIncidentes { get; init; } = "Incidentes indisponíveis.";
+    public bool CamadaMapaDisponivel { get; init; }
 }
 public class TransitoService(HttpClient http, IConfiguration config, IMemoryCache cache)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static readonly ConcurrentDictionary<string, int> TileRequests = new();
     public static readonly RegiaoTransito[] Regioes = [new("Orla", -23.972, -46.327), new("Centro", -23.936, -46.329), new("Zona Noroeste", -23.941, -46.371), new("Ponta da Praia", -23.985, -46.301), new("Área Continental", -23.872, -46.174), new("Av. Ana Costa", -23.958, -46.333), new("Av. Conselheiro Nébias", -23.955, -46.326)];
     private async Task<JsonDocument?> ConsultarJsonAsync(string endpoint, string key, CancellationToken ct)
     {
@@ -31,11 +34,28 @@ public class TransitoService(HttpClient http, IConfiguration config, IMemoryCach
         var text = await response.Content.ReadAsStringAsync(ct);
         return JsonDocument.Parse(text);
     }
+    public bool CamadaMapaHabilitada => config.GetValue("Traffic:Enabled", false) &&
+        !string.IsNullOrWhiteSpace(config["TOMTOM_API_KEY"]);
+
+    public async Task<byte[]?> ConsultarTileFluxoAsync(int zoom, int x, int y, CancellationToken ct)
+    {
+        var key = config["TOMTOM_API_KEY"];
+        if (!CamadaMapaHabilitada || string.IsNullOrWhiteSpace(key)) return null;
+        var limit = Math.Clamp(config.GetValue("Traffic:MaxTileRequestsPerMonth", 10000), 0, 1000000);
+        var month = DateTime.UtcNow.ToString("yyyyMM", CultureInfo.InvariantCulture);
+        if (limit == 0 || TileRequests.AddOrUpdate(month, 1, (_, count) => count + 1) > limit) return null;
+        using var req = new HttpRequestMessage(HttpMethod.Get,
+            $"https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{zoom}/{x}/{y}.png?key={Uri.EscapeDataString(key)}");
+        using var response = await http.SendAsync(req, ct);
+        if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "image/png") return null;
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
+
     public async Task<EstadoTransito> ConsultarAsync(string? regiao, CancellationToken ct)
     {
         var r = Regioes.FirstOrDefault(r => r.Nome == (regiao ?? "Orla")) ?? throw new ArgumentException("Região inválida.");
-        EstadoTransito Indisponivel(string mensagem = "Dados de trânsito indisponíveis. Tente novamente em instantes.") => new(false, "TomTom", mensagem, null, false, Regioes, []);
         var key = config["TOMTOM_API_KEY"];
+        EstadoTransito Indisponivel(string mensagem = "Dados de trânsito indisponíveis. Tente novamente em instantes.") => new(false, "TomTom", mensagem, null, false, Regioes, []) { CamadaMapaDisponivel = CamadaMapaHabilitada };
         if (!config.GetValue("Traffic:Enabled", false) || string.IsNullOrWhiteSpace(key)) return Indisponivel("Dados de trânsito indisponíveis. A integração depende de configuração do serviço.");
         await Gate.WaitAsync(ct);
         try
@@ -89,6 +109,7 @@ public class TransitoService(HttpClient http, IConfiguration config, IMemoryCach
             {
                 Incidentes = incidents,
                 ValidoAte = updated.AddSeconds(120),
+                CamadaMapaDisponivel = CamadaMapaHabilitada,
                 MensagemIncidentes = incidentsAvailable ? (incidents.Count == 0 ? "Nenhum incidente informado pelo provedor no recorte consultado." : "Incidentes no entorno da região. O recorte pode incluir vias de municípios vizinhos.") : "Incidentes indisponíveis. Não é possível afirmar ausência de interdições."
             };
         }

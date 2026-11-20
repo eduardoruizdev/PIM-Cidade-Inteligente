@@ -25,6 +25,13 @@ class ApiClient {
   final http.Client _client;
   String? _cookie;
   ApiClient({http.Client? client}) : _client = client ?? createPlatformClient();
+  String get trafficTileUrl => kIsWeb && baseUrl.isEmpty
+      ? '${Uri.base.origin}/api/transito/tiles/flow/{z}/{x}/{y}'
+      : '$baseUrl/api/transito/tiles/flow/{z}/{x}/{y}';
+  Map<String, String> get trafficTileHeaders => {
+        'X-Santos-Client': 'citizen',
+        if (!kIsWeb && _cookie != null) 'Cookie': _cookie!,
+      };
   Future<void> restore() async {
     if (kIsWeb) return;
     _cookie = await _storage.read(key: 'session');

@@ -30,6 +30,7 @@ type Traffic = {
   incidentesDisponiveis: boolean;
   mensagemIncidentes: string;
   incidentes: {id: string; descricao: string; de: string; ate: string; interditado: boolean; coordenadas: {latitude: number; longitude: number}[]}[];
+  camadaMapaDisponivel: boolean;
 };
 function Focus({ region }: { region: Region }) {
   const map = useMap();
@@ -126,6 +127,13 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
             attribution="&copy; OpenStreetMap contributors"
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {query.data?.camadaMapaDisponivel && <TileLayer
+            key={'tomtom-flow-' + query.dataUpdatedAt}
+            attribution="Traffic flow © TomTom"
+            url="/api/transito/tiles/flow/{z}/{x}/{y}"
+            opacity={0.72}
+            maxNativeZoom={18}
+          />}
           <Focus region={region} />
           {!region.nome.startsWith('Av. ') && !roadName && <Rectangle bounds={[[region.latitude-.012,region.longitude-.015],[region.latitude+.012,region.longitude+.015]]} pathOptions={{color:'#475569',weight:2,dashArray:'6 6',fillOpacity:.06}}><Popup>{region.nome} · recorte de consulta, sem condição de trânsito atribuída à área inteira.</Popup></Rectangle>}
           {roadName && road.data?.segmentos.map((points,i)=><Polyline key={'road-'+i} positions={points.map(p=>[p.latitude,p.longitude] as [number,number])} pathOptions={{color:'#475569',weight:10,opacity:0.8}}><Popup>{road.data.nome} · condição desconhecida · {road.data.fonte}</Popup></Polyline>)}
