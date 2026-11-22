@@ -17,7 +17,8 @@ class ApiException implements Exception {
 class ApiClient {
   static const baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://10.0.2.2:5080',
+    // Web/prod uses same-origin by default; Android emulator targets host localhost.
+    defaultValue: kIsWeb ? '' : 'http://10.0.2.2:5080',
   );
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),

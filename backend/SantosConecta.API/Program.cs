@@ -43,13 +43,15 @@ builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(P
 SantosConecta.API.Authentication.PortalAuthentication.AddPortalAuthentication(builder.Services, builder.Environment.IsDevelopment());
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient("TravessiaLinks", c => {
-    c.Timeout = TimeSpan.FromSeconds(16);
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta/3.0 (verificacao-de-link)");
-}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddHttpClient("AcquaVias", c => {
+    c.Timeout = TimeSpan.FromSeconds(15);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta/3.0 (consulta-de-servico-publico)");
+    c.DefaultRequestHeaders.Accept.ParseAdd("text/html");
+});
 builder.Services.AddSingleton(sp => new TravessiaService(
-    sp.GetRequiredService<IHttpClientFactory>().CreateClient("TravessiaLinks"),
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AcquaVias"),
     sp.GetRequiredService<ILogger<TravessiaService>>()));
+builder.Services.AddHostedService<TravessiaWorker>();
 builder.Services.AddHttpClient<ServicosPublicosService>(c=>{c.Timeout=TimeSpan.FromSeconds(20);c.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta-Academico/3.0");});
 builder.Services.AddSingleton<ConectaHistorico>();
 builder.Services.AddScoped<IConectaConsultas,ConectaConsultas>();

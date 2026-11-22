@@ -244,8 +244,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Card(
                             child: ListTile(
                               leading: const Icon(Icons.directions_boat_outlined),
-                              title: const Text('Travessia Santos–Guarujá'),
-                              subtitle: const Text('Disponibilidade e consulta oficial'),
+                              title: const Text('Travessia de Balsas'),
+                              subtitle: const Text('Consulta oficial · Travessia Santos–Guarujá'),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => Navigator.push(context, MaterialPageRoute(
                                 builder: (_) => FerryScreen(api: widget.api))),

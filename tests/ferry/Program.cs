@@ -1,82 +1,78 @@
 using Microsoft.AspNetCore.Mvc;
-using SantosConecta.Infrastructure.Services;
-using SantosConecta.API.Controllers;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using SantosConecta.API.Controllers;
+using SantosConecta.Infrastructure.Services;
 
 void Check(bool ok, string message) { if (!ok) throw new Exception(message); Console.WriteLine("OK: " + message); }
-var service = new TravessiaService();
-var controller = new TravessiasController(service);
-var result = (DadosTravessia)((OkObjectResult)await controller.Atual()).Value!;
-Check(result.Sentidos.Count == 2 && result.Sentidos.Select(x => x.Sentido).Distinct().Count() == 2, "API contém ambos os sentidos");
-Check(result.Sentidos.All(x => !x.Disponivel && x.EsperaMinutos is null && x.InformadoEm is null && x.ConsultadoEm is null), "Ausência de fonte não inventa valores nem horários");
-Check(result.Modo == "consulta_oficial" && result.Embarcacoes is null && result.Comunicados.Count == 0, "Fallback explícito sem operação ou comunicados inventados");
-Check(ReferenceEquals(service.Consultar(), service.Consultar()), "Consultas repetidas reutilizam resposta sem tráfego externo");
-foreach (var period in new[] {"horas", "hoje", "7dias"}) {
- var json = JsonSerializer.SerializeToElement(((OkObjectResult)controller.Historico(period)).Value);
- Check(!json.GetProperty("suficiente").GetBoolean() && json.GetProperty("itens").GetArrayLength() == 0, "Histórico vazio honesto: " + period);
-}
-try { service.Historico("invalido"); throw new Exception("Aceitou período inválido"); }
-catch (ArgumentException) { Console.WriteLine("OK: período inválido rejeitado"); }
-Check(typeof(TravessiasController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true).Length == 1, "Endpoint segue autenticação existente");
-
 var clock = new FixtureClock();
-var pages = new PageHandler();
-var checkedService = new TravessiaService(new HttpClient(pages), timeProvider: clock);
-var checkedResult = await checkedService.ConsultarAsync();
-Check(checkedResult.ConsultaExterna is { Disponivel: true, Nome: "METROA · fonte independente" }, "Falha oficial permite página alternativa validada, rotulada como terceiro");
-await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => checkedService.ConsultarAsync()));
-Check(pages.Calls == 2, "Cache e exclusão mútua evitam novas requisições para dez consultas");
-clock.Now = clock.Now.AddMinutes(31);
-pages.Offline = true;
-checkedResult = await checkedService.ConsultarAsync();
-Check(checkedResult.ConsultaExterna is { Disponivel: false, Url: null } && checkedResult.Sentidos.All(s => s.EsperaMinutos is null), "Expiração e fonte offline removem link antigo sem criar medições");
-await checkedService.ConsultarAsync();
-Check(pages.Calls == 4, "Cache negativo impede insistência em páginas indisponíveis");
-pages.Offline = false;
-pages.Html = "<html><title>Outra página sem dados</title></html>";
-clock.Now = clock.Now.AddMinutes(31);
-Check((await checkedService.ConsultarAsync()).ConsultaExterna?.Disponivel == false, "HTTP 200 com conteúdo irrelevante não valida consulta");
-pages.Html = "<html>Santos Guaruja Just a moment</html>";
-clock.Now = clock.Now.AddMinutes(31);
-Check((await checkedService.ConsultarAsync()).ConsultaExterna?.Disponivel == false, "Desafio de acesso não é tratado como página válida");
-pages.Redirect = true;
-clock.Now = clock.Now.AddMinutes(31);
-Check((await checkedService.ConsultarAsync()).ConsultaExterna?.Disponivel == false, "Redirecionamento para host desconhecido não é seguido");
-using (var cancelled = new CancellationTokenSource()) {
- cancelled.Cancel();
- try { await checkedService.ConsultarAsync(cancelled.Token); throw new Exception("Cancelamento ignorado"); }
- catch (OperationCanceledException) { Console.WriteLine("OK: cancelamento do cliente respeitado"); }
+using var factory = LoggerFactory.Create(_ => { });
+var handler = new PageHandler();
+var client = new HttpClient(handler);
+var service = new TravessiaService(client, factory.CreateLogger<TravessiaService>(), clock);
+var controller = new TravessiasController(service);
+var first = await service.ConsultarAsync();
+Check(first.Sentidos.Count == 2 && first.Sentidos[0].EsperaMinutos == 15 && first.Sentidos[1].EsperaMinutos == 55,
+    "HTML oficial é interpretado para ambos os sentidos");
+Check(first.Embarcacoes == 9 && first.Comunicados.Single().Contains("maré forte"),
+    "Quantidade de embarcações e aviso operacional vêm do HTML oficial");
+Check(first.CapturadoEm == clock.Now && first.Sentidos.All(x => x.InformadoEm == clock.Now),
+    "Timestamp identifica consulta à fonte, sem inventar hora original da medição");
+Check(handler.Calls == 1 && (await service.ConsultarAsync()).CapturadoEm == first.CapturadoEm && handler.Calls == 1,
+    "Cache evita chamada externa repetida dentro do minuto");
+clock.Now = clock.Now.AddMinutes(4);
+handler.Offline = true;
+var stale = await service.ConsultarAsync();
+Check(stale.Sentidos.All(x => x.Desatualizado) && stale.Sentidos[0].EsperaMinutos == 15,
+    "Indisponibilidade preserva última resposta válida identificada como desatualizada");
+var api = (DadosTravessia)((OkObjectResult)await controller.Atual()).Value!;
+Check(api.FonteUrl == "https://acquavias.com.br/santos-guaruja/" && api.Sentidos.Count == 2,
+    "Endpoint REST existente entrega a fonte oficial e os sentidos");
+handler.HtmlData = "<html><div data-travessia-id=\"1951\">sem tempos</div></html>";
+clock.Now = clock.Now.AddMinutes(4);
+var retained = await service.ConsultarAsync();
+Check(retained.Sentidos[0].EsperaMinutos == 15 && retained.Sentidos.All(x => x.Desatualizado),
+    "Resposta inválida não substitui cache válido");
+var invalid = false;
+try { TravessiaService.Parse("<html>outra página</html>", clock.Now); }
+catch (InvalidDataException) { invalid = true; }
+Check(invalid, "Página incompatível é rejeitada sem gerar dados");
+var sourceFileIndex = Array.IndexOf(args, "--html-file");
+if (sourceFileIndex >= 0 && sourceFileIndex + 1 < args.Length)
+{
+    var source = TravessiaService.Parse(File.ReadAllText(args[sourceFileIndex + 1]), DateTimeOffset.UtcNow);
+    Check(source.Sentidos.All(x => x.Disponivel && x.EsperaMinutos is >= 0),
+        "Parser extrai os dois tempos do HTML oficial baixado agora");
+    Console.WriteLine("Leitura oficial interpretada: " + JsonSerializer.Serialize(source));
 }
-if (args.Contains("--live")) {
- using var liveClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
- liveClient.DefaultRequestHeaders.UserAgent.ParseAdd("SantosConecta/3.0 (verificacao-de-link)");
- using var logFactory = LoggerFactory.Create(b => b.AddConsole());
- var live = await new TravessiaService(liveClient, logFactory.CreateLogger<TravessiaService>()).ConsultarAsync();
- Console.WriteLine("Consulta HTTP real: " + JsonSerializer.Serialize(live.ConsultaExterna));
- Check(live.Sentidos.All(x => x.EsperaMinutos is null), "Verificação de link não se transforma em medição inventada");
+foreach (var period in new[] { "horas", "hoje", "7dias" })
+    Check(!JsonSerializer.SerializeToElement(service.Historico(period)).GetProperty("suficiente").GetBoolean(), "Histórico sem leituras não inventa dados: " + period);
+Console.WriteLine("Verificações da integração de travessia aprovadas.");
+if (args.Contains("--live"))
+{
+    using var liveHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+    var live = await new TravessiaService(liveHttp, factory.CreateLogger<TravessiaService>()).ConsultarAsync();
+    Console.WriteLine("Resposta da fonte oficial: " + JsonSerializer.Serialize(live));
+    Check(live.Sentidos.Any(x => x.Disponivel && x.EsperaMinutos is not null) || live.Modo == "indisponivel",
+        "Consulta live retornou dados parseáveis ou indisponibilidade explícita");
 }
 
-class FixtureClock : TimeProvider {
- public DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
- public override DateTimeOffset GetUtcNow() => Now;
-}
-class PageHandler : HttpMessageHandler {
- public int Calls;
- public bool Offline;
- public bool Redirect;
- public string Html = "<html><title>Santos Guaruja — consulta fixture</title></html>";
- protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) {
-  Calls++;
-  if (Redirect) {
-   var response = new HttpResponseMessage(System.Net.HttpStatusCode.Redirect);
-   response.Headers.Location = new Uri("https://exemplo.invalid/");
-   return Task.FromResult(response);
-  }
-  if (Offline || request.RequestUri!.Host == "semil.sp.gov.br")
-   return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
-  return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
-   Content = new StringContent(Html, System.Text.Encoding.UTF8, "text/html")
-  });
- }
+class FixtureClock : TimeProvider { public DateTimeOffset Now = new(2026, 11, 22, 15, 0, 0, TimeSpan.Zero); public override DateTimeOffset GetUtcNow() => Now; }
+class PageHandler : HttpMessageHandler
+{
+    private const string Html = """
+    <html><div class="aqv-aviso-usuario">Travessia com lentidão por motivo de maré forte.</div>
+    <a data-travessia-id="1951"><div class="aqv-topbar__superior"><div class="aqv-topbar__nomes"><span>Santos</span><span>Guarujá</span></div>
+    <div class="aqv-topbar__tempos"><span>15 min</span><span>55 min</span></div></div>
+    <div class="aqv-topbar__embarcacoes" aria-label="9 embarcações em operação"><span>9</span></div></a></html>
+    """;
+    public int Calls; public bool Offline; public string HtmlData = Html;
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        Calls++;
+        if (Offline) return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable));
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
+            Content = new StringContent(HtmlData, System.Text.Encoding.UTF8, "text/html")
+        });
+    }
 }

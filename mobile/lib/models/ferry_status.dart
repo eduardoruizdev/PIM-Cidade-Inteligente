@@ -68,7 +68,7 @@ class FerryStatus {
         checked != null &&
         uri?.scheme == 'https' &&
         uri!.userInfo.isEmpty &&
-        ['semil.sp.gov.br', 'metroa.com.br'].contains(uri.host);
+        ['semil.sp.gov.br', 'metroa.com.br', 'acquavias.com.br'].contains(uri.host);
     final vessels = json['embarcacoes'];
     return FerryStatus(
         json['fonte'] as String? ?? 'SEMIL · Departamento Hidroviário',

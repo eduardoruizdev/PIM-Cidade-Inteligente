@@ -94,16 +94,25 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
     }
   }
 
-  Widget pill(String text, IconData icon, {bool warning = false}) => Container(
+  Widget pill(String text, IconData icon,
+          {bool warning = false, bool attention = false}) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
           color:
-              warning ? colors.errorContainer : colors.surfaceContainerHighest,
+              warning
+                  ? colors.errorContainer
+                  : attention
+                      ? colors.tertiaryContainer
+                      : colors.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(24)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon,
             size: 15,
-            color: warning ? colors.onErrorContainer : colors.onSurfaceVariant),
+            color: warning
+                ? colors.onErrorContainer
+                : attention
+                    ? colors.onTertiaryContainer
+                    : colors.onSurfaceVariant),
         const SizedBox(width: 6),
         Flexible(
             child: Text(text,
@@ -112,7 +121,9 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
                     fontWeight: FontWeight.w600,
                     color: warning
                         ? colors.onErrorContainer
-                        : colors.onSurfaceVariant))),
+                        : attention
+                            ? colors.onTertiaryContainer
+                            : colors.onSurfaceVariant))),
       ]));
 
   Widget panel({required Widget child, Color? color}) => Container(
@@ -149,11 +160,11 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
                     letterSpacing: 1.2))),
       ]),
       const SizedBox(height: 20),
-      Text('Travessia\nSantos–Guarujá',
+      Text('Travessia de Balsas',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w800, height: 1.15, letterSpacing: -0.8)),
       const SizedBox(height: 10),
-      Text('Acompanhe as condições dos dois lados antes de atravessar.',
+      Text('Acompanhe as condições da travessia Santos–Guarujá.',
           style: TextStyle(color: colors.onSurfaceVariant, height: 1.5)),
       const SizedBox(height: 16),
       Wrap(spacing: 8, runSpacing: 8, children: [
@@ -213,8 +224,14 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
       ]));
 
   Widget direction(FerryDirection d, int index) {
-    final fresh = d.current(now) && error == null;
-    final historical = d.minutes != null && !fresh;
+    final noticeText = data?.notices.join(' ').toLowerCase() ?? '';
+    final interrupted = noticeText.contains('paralis') || noticeText.contains('interromp');
+    final attention = noticeText.contains('lentidão') || noticeText.contains('maré forte');
+    final fresh = d.current(now) && error == null && !interrupted && !attention;
+    final historical = d.minutes != null &&
+        (!d.current(now) || error != null) &&
+        !attention &&
+        !interrupted;
     return panel(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -272,17 +289,26 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
       ],
       const SizedBox(height: 14),
       pill(
-          fresh
+          interrupted
+              ? 'Interrupção informada pela fonte'
+              : attention
+                  ? 'Atenção operacional'
+                  : fresh
               ? 'Atualização confirmada'
               : historical
                   ? 'Histórico · não usar como tempo atual'
                   : 'Aguardando dados verificados',
-          fresh
+          interrupted
+              ? Icons.block
+              : attention
+                  ? Icons.warning_amber_rounded
+                  : fresh
               ? Icons.verified_outlined
               : historical
                   ? Icons.history
                   : Icons.info_outline,
-          warning: historical),
+          warning: historical || interrupted,
+          attention: attention && !interrupted),
       const Padding(
           padding: EdgeInsets.symmetric(vertical: 16),
           child: Divider(height: 1)),
@@ -296,7 +322,7 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
         Icon(Icons.access_time, size: 15, color: colors.onSurfaceVariant),
         const SizedBox(width: 6),
         Expanded(
-            child: Text('Medição: ${ferryTime(d.measuredAt)}',
+          child: Text('Página oficial consultada: ${ferryTime(d.measuredAt)}',
                 style:
                     TextStyle(fontSize: 11, color: colors.onSurfaceVariant))),
       ]),
@@ -306,7 +332,10 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
   Widget notice() {
     final unverified =
         data == null || data!.directions.any((d) => !d.current(now));
-    if (!unverified && error == null) return const SizedBox.shrink();
+    final hasOperationalNotice = data?.notices.isNotEmpty == true;
+    if (!unverified && error == null && !hasOperationalNotice) {
+      return const SizedBox.shrink();
+    }
     return panel(
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Icon(error == null ? Icons.info_outline : Icons.wifi_off_rounded,
@@ -317,13 +346,17 @@ class _FerryScreenState extends State<FerryScreen> with WidgetsBindingObserver {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(
             error == null
-                ? 'Planeje com informação confirmada'
+                ? hasOperationalNotice
+                    ? 'Aviso operacional da AcquaVias'
+                    : 'Planeje com informação confirmada'
                 : 'Não foi possível atualizar',
             style: const TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text(
             error ??
-                data?.notice ??
+                (hasOperationalNotice
+                    ? data!.notices.join('\n')
+                    : data?.notice) ??
                 'Buscando a disponibilidade das informações da travessia.',
             style: TextStyle(
                 fontSize: 12, height: 1.6, color: colors.onSurfaceVariant)),

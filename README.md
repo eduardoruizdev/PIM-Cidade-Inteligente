@@ -365,8 +365,6 @@ Os testes integrados criam cidadãos/reclamações fictícios adicionais e final
 Roteiro da apresentação: login → cadastrar reclamação → alterar status/responsável → consultar histórico → verificar indicadores/mapa → gerar sugestão → revisar e-mail → simular envio → mostrar resultado no SQL Server e contrato no Swagger.
 
 O planejamento de duas sprints e o backlog estão em [docs/SCRUM.md](docs/SCRUM.md). Referências: [ASP.NET Core](https://learn.microsoft.com/aspnet/core/), [EF Core](https://learn.microsoft.com/ef/core/) e [React Leaflet](https://react-leaflet.js.org/docs/api-map/).
-# Travessia Santos–Guarujá
+# Travessia Santos?Guaruj?
 
-Revisão visual e diagnóstico de fontes: [redesign, validação de links e limitações atuais](docs/travessia-redesign.md).
-
-O aplicativo apresenta os dois sentidos e informa explicitamente a indisponibilidade de tempos reais confirmados. A consulta externa só é oferecida após validação de acesso no backend. Não há tempos simulados, coleta automática de medições ou alertas de espera ativos. Consulte o [relatório atual de fontes, endpoints e validação](docs/travessia-redesign.md). Testes específicos: `dotnet run --project tests/ferry`; diagnóstico real: `node --use-system-ca scripts/check-ferry-sources.mjs`.
+A se??o mobile consulta a p?gina oficial da [AcquaVias](https://acquavias.com.br/santos-guaruja/) pelo backend, com cache e atualiza??o peri?dica. Tempos, embarca??es e avisos operacionais s?o extra?dos do HTML p?blico. O site n?o informa o hor?rio original da medi??o; o aplicativo identifica quando a p?gina foi consultada. Consulte [integra??o, fonte e limita??es](docs/travessia-acquavias.md). Testes espec?ficos: `dotnet run --project tests/ferry`.
