@@ -22,51 +22,6 @@ class _TrafficScreenState extends State<TrafficScreen>
   Timer? timer;
   bool active = true;
   int ticks = 0;
-  final roadInput = TextEditingController(text: 'Avenida Ana Costa');
-  List<List<LatLng>> roadSegments = [];
-  String? selectedRoad;
-  String? roadMessage;
-  bool roadLoading = false;
-  int roadRequest = 0;
-  Future<void> selectRoad() async {
-    final generation = ++roadRequest;
-    setState(() {
-      roadLoading = true;
-      roadMessage = null;
-      roadSegments = [];
-    });
-    try {
-      final result = await widget.api.send(
-          '/api/transito/geometria?nome=${Uri.encodeComponent(roadInput.text.trim())}');
-      if (!mounted || generation != roadRequest) return;
-      final segments = (result['segmentos'] as List)
-          .map((s) => (s as List)
-              .map((p) => LatLng((p['latitude'] as num).toDouble(),
-                  (p['longitude'] as num).toDouble()))
-              .toList())
-          .toList();
-      setState(() {
-        roadSegments = segments;
-        selectedRoad = result['nome'];
-        roadMessage =
-            '$selectedRoad · traçado em cinza: condição desconhecida. Fluxo TomTom apenas nos trechos consultados.';
-        roadLoading = false;
-      });
-      map.fitCamera(CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(segments.expand((s) => s).toList()),
-          padding: EdgeInsets.all(24),
-          maxZoom: 16));
-    } catch (_) {
-      if (mounted && generation == roadRequest) {
-        setState(() {
-          roadMessage =
-              'Não foi possível obter o traçado. Confira o nome e tente novamente.';
-          roadLoading = false;
-        });
-      }
-    }
-  }
-
   void reload() {
     setState(() => data =
         widget.api.send('/api/transito?regiao=${Uri.encodeComponent(region)}'));
@@ -77,22 +32,15 @@ class _TrafficScreenState extends State<TrafficScreen>
     super.initState();
     if (widget.initialRoad == 'Avenida Ana Costa' ||
         widget.initialRoad == 'Avenida Conselheiro Nébias') {
-      roadInput.text = widget.initialRoad!;
       region = widget.initialRoad == 'Avenida Ana Costa'
           ? 'Av. Ana Costa'
           : 'Av. Conselheiro Nébias';
       center = region == 'Av. Ana Costa'
-          ? LatLng(-23.958, -46.333)
+          ? LatLng(-23.966537, -46.332837)
           : LatLng(-23.955, -46.326);
     }
     data =
         widget.api.send('/api/transito?regiao=${Uri.encodeComponent(region)}');
-    if (widget.initialRoad != null) {
-      data.then((_) async {
-        await WidgetsBinding.instance.endOfFrame;
-        if (mounted) await selectRoad();
-      }).catchError((Object _) {});
-    }
     WidgetsBinding.instance.addObserver(this);
     timer = Timer.periodic(Duration(seconds: 5), (_) {
       if (!active || ModalRoute.of(context)?.isCurrent != true) return;
@@ -113,7 +61,6 @@ class _TrafficScreenState extends State<TrafficScreen>
 
   @override
   void dispose() {
-    roadInput.dispose();
     map.dispose();
     timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -145,30 +92,6 @@ class _TrafficScreenState extends State<TrafficScreen>
               Text('Mobilidade urbana',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
               SizedBox(height: 16),
-              TextField(
-                  controller: roadInput,
-                  maxLength: 100,
-                  decoration: InputDecoration(labelText: 'Via em Santos'),
-                  onSubmitted: (_) => selectRoad()),
-              Row(children: [
-                Expanded(
-                    child: OutlinedButton(
-                        onPressed: roadLoading ? null : selectRoad,
-                        child: Text(
-                            roadLoading ? 'Carregando…' : 'Destacar via'))),
-                TextButton(
-                    onPressed: () {
-                      roadRequest++;
-                      setState(() {
-                        roadSegments = [];
-                        selectedRoad = null;
-                        roadMessage = null;
-                        roadLoading = false;
-                      });
-                    },
-                    child: Text('Limpar seleção'))
-              ]),
-              if (roadMessage != null) Text(roadMessage!),
               if (regions.isNotEmpty)
                 DropdownButtonFormField<String>(
                     initialValue: region,
@@ -188,20 +111,7 @@ class _TrafficScreenState extends State<TrafficScreen>
                         data = widget.api.send(
                             '/api/transito?regiao=${Uri.encodeComponent(v)}');
                       });
-                      if (v.startsWith('Av. ')) {
-                        roadInput.text = v.replaceFirst('Av. ', 'Avenida ');
-                        data.then((_) async {
-                          await WidgetsBinding.instance.endOfFrame;
-                          if (mounted && region == v) await selectRoad();
-                        }).catchError((Object _) {});
-                      } else {
-                        roadRequest++;
-                        setState(() {
-                          roadSegments = [];
-                          selectedRoad = null;
-                          roadMessage = null;
-                        });
-                      }
+                      map.move(center, 13);
                     }),
               SizedBox(height: 16),
               Text(s.hasError
@@ -214,6 +124,16 @@ class _TrafficScreenState extends State<TrafficScreen>
               Text(
                   'Última consulta: ${s.data?['ultimaAtualizacao'] == null ? 'indisponível' : dateTimeLabel(s.data['ultimaAtualizacao'])}'),
               SizedBox(height: 16),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                _summary('Tranquilos', s.data?['trechosTranquilos'], Colors.green, fresh),
+                _summary('Moderados', s.data?['trechosModerados'], Colors.amber.shade800, fresh),
+                _summary('Congestionados', s.data?['trechosCongestionados'], Colors.red, fresh),
+                _summary('Sem informacao', s.data?['trechosSemInformacao'], Colors.blueGrey, fresh),
+              ]),
+              Text(fresh
+                  ? 'Situacao geral das amostras: ${s.data?['situacaoGeral']}. Os numeros contam somente trechos retornados, nao todas as vias da regiao.'
+                  : 'Indicadores indisponiveis: nao ha amostras atuais.'),
+              SizedBox(height: 12),
               SizedBox(
                   height: 360,
                   child: FlutterMap(
@@ -236,7 +156,7 @@ class _TrafficScreenState extends State<TrafficScreen>
                               tileDisplay: TileDisplay.fadeIn(duration: Duration(milliseconds: 180)),
                               userAgentPackageName:
                                   'br.edu.santosconecta.mobile'),
-                        if (!region.startsWith('Av. ') && selectedRoad == null)
+                        if (!region.startsWith('Av. '))
                           PolygonLayer(polygons: [
                             Polygon(
                                 points: [
@@ -253,13 +173,6 @@ class _TrafficScreenState extends State<TrafficScreen>
                                 borderColor: Colors.blueGrey,
                                 borderStrokeWidth: 2)
                           ]),
-                        PolylineLayer(
-                            polylines: roadSegments
-                                .map((p) => Polyline(
-                                    points: p,
-                                    color: Colors.blueGrey,
-                                    strokeWidth: 10))
-                                .toList()),
                         if (fresh && s.data?['disponivel'] == true)
                           PolylineLayer(
                               polylines:
@@ -312,7 +225,7 @@ class _TrafficScreenState extends State<TrafficScreen>
                         ])
                       ])),
               SizedBox(height: 16),
-              if (!region.startsWith('Av. ') && selectedRoad == null)
+              if (!region.startsWith('Av. '))
                 Text(
                     '$region: destaque do recorte de consulta de incidentes; não representa limites oficiais nem uma condição de trânsito para toda a área.'),
               if (fresh)
@@ -337,4 +250,9 @@ class _TrafficScreenState extends State<TrafficScreen>
                   'Legenda: verde — fluxo livre; amarelo — lentidão; vermelho — congestionamento; cinza — condição desconhecida ou interdição indicada no detalhe; laranja — incidente. Sem uma fonte real conectada, nenhuma condição atual é afirmada.'),
             ]);
           }));
+
+  Widget _summary(String label, dynamic count, Color color, bool fresh) => Chip(
+        avatar: CircleAvatar(backgroundColor: color, radius: 7),
+        label: Text('$label · ${fresh ? count ?? 0 : '—'}'),
+      );
 }

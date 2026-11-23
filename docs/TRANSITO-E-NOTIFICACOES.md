@@ -1,5 +1,7 @@
 # Interface, notificações e trânsito — 02/11/2026
 
+No ambiente atualmente inspecionado, `TOMTOM_API_KEY` nao esta configurada. A consulta sem chave retornou HTTP 401; portanto, nao foi possivel validar fluxo ao vivo nesta execucao. O backend retorna indisponivel e as interfaces nao afirmam condicoes atuais ate que uma chave valida seja configurada. `Traffic:Enabled` esta habilitado por padrao no appsettings, mas a chave continua obrigatoria.
+
 ## Fluxo TomTom cobrindo o mapa
 
 Além da consulta de segmento próximo a uma referência, React e Flutter podem exibir a camada de Raster Flow Tiles `relative0` da TomTom em todas as vias com dados nos tiles visíveis. O backend a serve em `/api/transito/tiles/flow/{z}/{x}/{y}`; a chave permanece no servidor, a rota requer sessão autenticada e as respostas não são armazenadas. O limite local padrão é 10.000 tiles por mês (`Traffic:MaxTileRequestsPerMonth`), separado das consultas de segmento/incidentes. Esse contador em memória reinicia quando a API reinicia e serve como proteção local, não como controle de faturamento. Configure-o conforme o plano e o consumo esperado; a cota e cobrança da conta TomTom prevalecem. A cobertura depende das vias e dos dados fornecidos pela TomTom para cada tile e não garante que toda rua de Santos terá uma condição.
@@ -58,15 +60,15 @@ Reinicie a API depois de alterar a configuração. A chave nunca é entregue ao 
 
 TomTom foi mantido porque sua API REST pode ser normalizada no backend e consumida pelo Leaflet e pelo flutter_map existentes. Google TrafficLayer exige o mapa Google no cliente; sua utilização depende das condições de faturamento da plataforma. Não houve contratação, criação de conta ou alteração de plano.
 
-A tabela oficial TomTom informa cobertura de fluxo e incidentes no Brasil. Nesta execução, a cobertura foi também verificada com chamadas reais nas referências Orla e Av. Ana Costa, em Santos. Isso não comprova cobertura de toda rua da cidade. O endpoint Flow Segment Data retorna o fragmento viário mais próximo da referência, com velocidade média atual, velocidade de fluxo livre e indicação de fechamento. Somente a geometria efetivamente retornada recebe cor.
+A tabela oficial TomTom informa cobertura de fluxo e incidentes no Brasil. A disponibilidade em cada via depende dos dados retornados pelo provedor. Flow Segment Data retorna o fragmento viario mais proximo da referencia consultada. As opcoes do filtro sao referencias dentro de Santos; o sistema nao apresenta as outras cidades da regiao como areas monitoradas.
 
 Incident Details v5 retorna incidentes atuais no recorte da região. A consulta usa `timeValidityFilter=present` e `language=pt-PT`: o serviço rejeita pt-BR. Os recortes são retângulos de consulta, não polígonos municipais oficiais, e podem alcançar vias vizinhas. Lista vazia significa nenhum incidente informado naquele recorte, não garantia de ausência de problemas.
 
-As interfaces consultam a cada 60 segundos enquanto ativas, mostram o horário UTC convertido para apresentação local e retiram a camada após 120 segundos sem informação válida ou em caso de erro. O horário é o da consulta ao provedor, não o instante comprovado da medição de cada veículo. Sem fonte conectada, não há fluxo ou incidente inventado.
+As interfaces consultam a cada 60 segundos enquanto ativas, mostram o horario UTC convertido para apresentacao local e retiram a camada apos 120 segundos sem informacao valida ou em caso de erro. O horario e o da consulta ao provedor, nao o instante comprovado da medicao de cada veiculo. Os indicadores resumem somente os trechos devolvidos pela API; nao estimam o total de vias da cidade.
 
 O backend não armazena respostas de trânsito nem serve cópias antigas após falhas. O endpoint é `no-store`. Há proteção de dez segundos entre consultas à mesma região e limite conservador de requisições por processo/mês. Esse contador é em memória, reinicia com o processo e não substitui quotas ou limites financeiros na conta TomTom. As atribuições OpenStreetMap e TomTom permanecem nas telas.
 
-Na página de preços consultada em 02/11/2026, Flow Segment Data apresenta franquia de 20 mil requisições mensais e Incident Details de 2,5 mil. As condições da conta e do plano contratado prevalecem; não presumir gratuidade ilimitada ou teto financeiro garantido pelo aplicativo.
+Na pagina oficial consultada em 22/11/2026, Flow Segment Data apresenta franquia gratuita de 20 mil requisicoes mensais, Incident Details 2,5 mil e Raster Flow Tiles 200 mil. A franquia e por API e por conta, sujeita aos termos e alteracoes do provedor. O contador local do backend nao representa a cota da conta.
 
 Fontes oficiais consultadas:
 

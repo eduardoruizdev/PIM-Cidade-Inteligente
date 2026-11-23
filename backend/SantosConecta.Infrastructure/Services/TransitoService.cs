@@ -7,7 +7,12 @@ namespace SantosConecta.Infrastructure.Services;
 
 public record RegiaoTransito(string Nome, double Latitude, double Longitude);
 public record PontoTransito(double Latitude, double Longitude);
-public record TrechoTransito(string Regiao, int VelocidadeAtual, int VelocidadeLivre, bool Interditado, List<PontoTransito> Coordenadas);
+public record TrechoTransito(string Regiao, int VelocidadeAtual, int VelocidadeLivre, bool Interditado, List<PontoTransito> Coordenadas)
+{
+    public string Nivel => Interditado || VelocidadeLivre <= 0 ? "desconhecido" :
+        VelocidadeAtual / (double)VelocidadeLivre >= .75 ? "livre" :
+        VelocidadeAtual / (double)VelocidadeLivre >= .35 ? "moderado" : "intenso";
+}
 public record IncidenteTransito(string Id, string Descricao, string De, string Ate, bool Interditado, List<PontoTransito> Coordenadas);
 public record EstadoTransito(bool Disponivel, string Provedor, string Mensagem, DateTime? UltimaAtualizacao, bool IncidentesDisponiveis, RegiaoTransito[] Regioes, List<TrechoTransito> Trechos)
 {
@@ -15,12 +20,23 @@ public record EstadoTransito(bool Disponivel, string Provedor, string Mensagem, 
     public DateTime? ValidoAte { get; init; }
     public string MensagemIncidentes { get; init; } = "Incidentes indisponíveis.";
     public bool CamadaMapaDisponivel { get; init; }
+    public int TrechosTranquilos => Trechos.Count(t => t.Nivel == "livre");
+    public int TrechosModerados => Trechos.Count(t => t.Nivel == "moderado");
+    public int TrechosCongestionados => Trechos.Count(t => t.Nivel == "intenso");
+    public int TrechosSemInformacao => Trechos.Count(t => t.Nivel == "desconhecido");
+    public string SituacaoGeral => !Disponivel ? "indisponivel" : TrechosCongestionados > 0 ? "congestionado" : TrechosModerados > 0 ? "moderado" : TrechosTranquilos > 0 ? "livre" : "indisponivel";
 }
 public class TransitoService(HttpClient http, IConfiguration config, IMemoryCache cache)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly ConcurrentDictionary<string, int> TileRequests = new();
-    public static readonly RegiaoTransito[] Regioes = [new("Orla", -23.972, -46.327), new("Centro", -23.936, -46.329), new("Zona Noroeste", -23.941, -46.371), new("Ponta da Praia", -23.985, -46.301), new("Área Continental", -23.872, -46.174), new("Av. Ana Costa", -23.958, -46.333), new("Av. Conselheiro Nébias", -23.955, -46.326)];
+    // São pontos de consulta, não declarações de cobertura municipal integral. O provedor
+    // retorna o trecho mapeado mais próximo de cada ponto; a camada raster cobre só os tiles disponíveis.
+    public static readonly RegiaoTransito[] Regioes = [
+        new("Orla", -23.972, -46.327), new("Centro", -23.936, -46.329), new("Zona Noroeste", -23.941, -46.371),
+        new("Ponta da Praia", -23.985, -46.301), new("Área Continental", -23.872, -46.174),
+        new("Av. Ana Costa", -23.966537, -46.332837), new("Av. Conselheiro Nébias", -23.955, -46.326)
+    ];
     private async Task<JsonDocument?> ConsultarJsonAsync(string endpoint, string key, CancellationToken ct)
     {
         // Não armazenar respostas de trânsito: respeita inclusive Cache-Control: max-age=0.

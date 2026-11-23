@@ -5,14 +5,6 @@ import { request } from '../services/http';
 import { citizenRequest } from '../services/conecta';
 import { PageTitle, Panel } from '../components/ui';
 type Region = { nome: string; latitude: number; longitude: number };
-type Road = { nome: string; fonte: string; segmentos: {latitude: number; longitude: number}[][] };
-function RoadFocus({ road }: { road: Road | undefined }) {
-  const map = useMap();
-  useEffect(() => {
-    if (road?.segmentos.length) map.fitBounds(road.segmentos.flat().map(p => [p.latitude,p.longitude] as [number,number]), {padding:[24,24],maxZoom:16});
-  }, [map,road]);
-  return null;
-}
 type Segment = {
   regiao: string;
   velocidadeAtual: number;
@@ -31,6 +23,11 @@ type Traffic = {
   mensagemIncidentes: string;
   incidentes: {id: string; descricao: string; de: string; ate: string; interditado: boolean; coordenadas: {latitude: number; longitude: number}[]}[];
   camadaMapaDisponivel: boolean;
+  trechosTranquilos: number;
+  trechosModerados: number;
+  trechosCongestionados: number;
+  trechosSemInformacao: number;
+  situacaoGeral: string;
 };
 function Focus({ region }: { region: Region }) {
   const map = useMap();
@@ -41,9 +38,6 @@ function Focus({ region }: { region: Region }) {
 }
 export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initialRoad?:string} = {}) {
   const api=citizen?citizenRequest:request;
-  const [roadName,setRoadName] = useState(initialRoad||'');
-  const [roadInput,setRoadInput] = useState(initialRoad||'Avenida Ana Costa');
-  const road = useQuery({queryKey:['geometria-via',roadName],queryFn:({signal})=>api<Road>('/api/transito/geometria?nome='+encodeURIComponent(roadName),{signal}),enabled:!!roadName,staleTime:86400000,retry:false});
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 5000); return () => clearInterval(timer); }, []);
   const [region, setRegion] = useState<Region>({
@@ -53,8 +47,7 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
   });
   useEffect(()=>{
     if(initialRoad==='Avenida Ana Costa' || initialRoad==='Avenida Conselheiro Nébias') {
-      setRoadName(initialRoad);setRoadInput(initialRoad);
-      setRegion(initialRoad==='Avenida Ana Costa'?{nome:'Av. Ana Costa',latitude:-23.958,longitude:-46.333}:{nome:'Av. Conselheiro Nébias',latitude:-23.955,longitude:-46.326});
+      setRegion(initialRoad==='Avenida Ana Costa'?{nome:'Av. Ana Costa',latitude:-23.966537,longitude:-46.332837}:{nome:'Av. Conselheiro Nébias',latitude:-23.955,longitude:-46.326});
     }
   },[initialRoad]);
   const query = useQuery({
@@ -76,11 +69,6 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
         subtitle="Mapa de referência · dados de ocorrências não são exibidos nesta camada"
       >
         <div className="filterbar">
-          <form onSubmit={e=>{e.preventDefault();if(roadInput.trim()===roadName)void road.refetch();else setRoadName(roadInput.trim());}}>
-            <label>Via em Santos <input value={roadInput} onChange={e=>setRoadInput(e.target.value)} maxLength={100}/></label>
-            <button className="button" disabled={road.isFetching}>Destacar via</button>
-            <button className="button" type="button" onClick={()=>setRoadName('')}>Limpar seleção</button>
-          </form>
           <label>
             Região{' '}
             <select
@@ -89,8 +77,6 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
                 const r = query.data?.regioes.find((r) => r.nome === e.target.value);
                 if (r) {
                   setRegion(r);
-                  if (r.nome.startsWith('Av. ')) {const name=r.nome.replace('Av. ','Avenida ');setRoadInput(name);setRoadName(name);}
-                  else setRoadName('');
                 }
               }}
             >
@@ -103,8 +89,7 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
             {query.isFetching ? 'Atualizando…' : 'Atualizar'}
           </button>
         </div>
-        {!region.nome.startsWith('Av. ') && !roadName && <p>{region.nome}: o retângulo destaca o recorte de consulta de incidentes, sem representar limites oficiais de bairro ou cobertura de trânsito.</p>}
-        <p role="status">{roadName && (road.isFetching ? 'Carregando traçado…' : road.isError ? 'Não foi possível obter o traçado. Confira o nome completo e tente novamente.' : `${road.data?.nome ?? roadName} · traçado em cinza: condição de trânsito desconhecida. Fluxo TomTom exibido apenas nos trechos consultados.`)}</p>
+        {!region.nome.startsWith('Av. ') && <p>{region.nome}: o retângulo destaca o recorte de consulta de incidentes, sem representar limites oficiais de bairro ou cobertura de trânsito.</p>}
         <div role="status" className="info-box">
           {query.isLoading
             ? 'Consultando disponibilidade…'
@@ -117,6 +102,15 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
                 new Date(query.data.ultimaAtualizacao).toLocaleString('pt-BR')
               : 'Última atualização de trânsito: indisponível'}
           </p>
+        </div>
+        <div className="traffic-summary" aria-label="Indicadores dos trechos consultados">
+          {([
+            ['Tranquilos', query.data?.trechosTranquilos ?? 0, '#16833b'],
+            ['Moderados', query.data?.trechosModerados ?? 0, '#a87500'],
+            ['Congestionados', query.data?.trechosCongestionados ?? 0, '#c62828'],
+            ['Sem informacao', query.data?.trechosSemInformacao ?? 0, '#64748b'],
+          ] as const).map(([label, count, color]) => <div key={label} className="traffic-summary-item"><strong style={{color}}>{fresh ? count : '—'}</strong><span>{label}</span></div>)}
+          <p>{fresh ? `Situacao geral das amostras: ${query.data?.situacaoGeral}.` : 'Indicadores indisponiveis: nao ha amostras atuais.'} Contagens representam somente trechos retornados pela TomTom, nao todas as vias da regiao.</p>
         </div>
         <MapContainer
           center={[region.latitude, region.longitude]}
@@ -135,9 +129,7 @@ export function TrafficPage({citizen=false,initialRoad}: {citizen?:boolean;initi
             maxNativeZoom={18}
           />}
           <Focus region={region} />
-          {!region.nome.startsWith('Av. ') && !roadName && <Rectangle bounds={[[region.latitude-.012,region.longitude-.015],[region.latitude+.012,region.longitude+.015]]} pathOptions={{color:'#475569',weight:2,dashArray:'6 6',fillOpacity:.06}}><Popup>{region.nome} · recorte de consulta, sem condição de trânsito atribuída à área inteira.</Popup></Rectangle>}
-          {roadName && road.data?.segmentos.map((points,i)=><Polyline key={'road-'+i} positions={points.map(p=>[p.latitude,p.longitude] as [number,number])} pathOptions={{color:'#475569',weight:10,opacity:0.8}}><Popup>{road.data.nome} · condição desconhecida · {road.data.fonte}</Popup></Polyline>)}
-          <RoadFocus road={roadName ? road.data : undefined}/>
+          {!region.nome.startsWith('Av. ') && <Rectangle bounds={[[region.latitude-.012,region.longitude-.015],[region.latitude+.012,region.longitude+.015]]} pathOptions={{color:'#475569',weight:2,dashArray:'6 6',fillOpacity:.06}}><Popup>{region.nome} · recorte de consulta, sem condição de trânsito atribuída à área inteira.</Popup></Rectangle>}
           {fresh && query.data?.trechos?.map((t, i) => (
             <Polyline
               key={i}

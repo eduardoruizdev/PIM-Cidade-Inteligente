@@ -945,6 +945,12 @@ h1 {
 .leaflet-popup-content p {
   margin: 8px 0;
 }
+
+.traffic-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 18px}
+.traffic-summary-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.traffic-summary-item strong{font-size:1.35rem}.traffic-summary-item span{font-size:.9rem;font-weight:600}
+.traffic-summary>p{grid-column:1/-1;margin:0;color:#64748b;font-size:.85rem}
+@media(max-width:640px){.traffic-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.traffic-summary-item{padding:10px}}
 .ranking-list {
   padding: 6px 20px 3px;
 }
