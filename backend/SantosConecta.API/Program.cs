@@ -12,7 +12,9 @@ using SantosConecta.Infrastructure.Data;
 using SantosConecta.Infrastructure.Repositories;
 using SantosConecta.Infrastructure.Services;
 using SantosConecta.API.Diagnostics;
+using SantosConecta.API;
 
+RootDotEnv.Load();
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -75,6 +77,9 @@ builder.Services.AddRateLimiter(o =>
         _=>new FixedWindowRateLimiterOptions{PermitLimit=12,Window=TimeSpan.FromMinutes(1),QueueLimit=0}));
     o.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "local",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("photo-upload", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "local",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 6, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
     o.AddPolicy("traffic-tiles", context => RateLimitPartition.GetTokenBucketLimiter(
         context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "local",
         _ => new TokenBucketRateLimiterOptions { TokenLimit = 120, TokensPerPeriod = 120, ReplenishmentPeriod = TimeSpan.FromMinutes(1), AutoReplenishment = true, QueueLimit = 0 }));
@@ -95,6 +100,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AutenticacaoService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<AssistenteService>();
+builder.Services.AddScoped<FotosOcorrenciaService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHttpClient<IRespostaService, GroqService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 var app = builder.Build();

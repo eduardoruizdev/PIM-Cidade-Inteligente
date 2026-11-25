@@ -1,5 +1,7 @@
 # Santos Conecta 2.0
 
+**Acessibilidade em Libras:** o portal React integra globalmente o widget oficial VLibras. Consulte [configuração, CSP e limitações do app Flutter](docs/ACESSIBILIDADE-VLIBRAS.md).
+
 **Serviços Próximos e aparência:** catálogo oficial no Flutter, mapa/lista, localização opcional e temas claro, escuro e automático no Flutter e no portal React do cidadão. [Entrega, fonte e validação](docs/SERVICOS-E-APARENCIA.md).
 
 **Conecta, assistente do cidadão:** disponível no Flutter e no portal React em `/cidadao`. Consulta dados autorizados, oferece ações de navegação e identifica o modo orientativo quando a IA está indisponível. [Configuração, testes e limites](docs/CONECTA.md).
@@ -226,7 +228,7 @@ Abra `http://localhost:5173` ou a URL exibida pelo Vite. `npm.cmd` evita bloquei
 
 Com `VITE_API_URL` vazio, o navegador utiliza `/api` e o proxy do Vite encaminha para `http://localhost:5080`. Isso mantém a mesma origem para cookies durante o desenvolvimento. Para uma URL direta, configure `VITE_API_URL` em `.env` e use o **mesmo hostname** no frontend e no backend: não misture `localhost` e `127.0.0.1` em chamadas diretas com cookie. Ajuste `AllowedOrigins` no backend caso altere a porta do frontend.
 
-O `.env.backend.example` é somente uma referência das variáveis do servidor; **o ASP.NET Core não carrega arquivos .env automaticamente**. Nunca copie segredos de SMTP ou Groq para variáveis `VITE_`.
+O backend carrega o `.env` ignorado da raiz antes de iniciar; variáveis já definidas no processo têm precedência. Copie `.env.example` para `.env` e configure `GROQ_API_KEY`, `TOMTOM_API_KEY` e, quando usar, SMTP/Firebase. O Vite só expõe variáveis `VITE_*`; nunca coloque credenciais nelas. `.env` não é versionado.
 
 Em Development, a API autoriza as portas 5173 e 5174 em localhost e 127.0.0.1, pois o Vite pode usar 5174 quando 5173 estiver ocupada. Após alterar AllowedOrigins, pare a API com Ctrl+C e inicie-a novamente. Um erro 403 antes da verificação da senha pode indicar uma origem não autorizada, e não comprova senha incorreta.
 
@@ -241,6 +243,7 @@ Se o npm apresentar o erro de certificado observado neste ambiente, execute `$en
 - Mapa com coordenadas do banco, agrupamento, calor, legenda, contagem na área visível e acesso ao protocolo.
 - Lista com busca, filtros, ordenação, paginação, cartões/tabela e CSV dos registros.
 - Cadastro de reclamação e cidadão, edição, atribuição, prioridade, status e observações com histórico.
+- Envio de até cinco fotografias por reclamação (JPG, PNG ou WebP, até 8 MB cada); arquivos ficam em `App_Data/fotos-ocorrencias` e metadados no SQL Server. Aplique `database/08-fotos-ocorrencias.sql` após os scripts 01–07.
 - Seção **Responder ao cidadão**, com nome, destinatário, protocolo, assunto, texto editável, sugestão assistida e envio manual por e-mail.
 - Histórico de e-mails do SQL Server, com resultado de cada tentativa.
 - Visão da equipe para Administrador; ambos os perfis podem consultar responsáveis e atender reclamações. Não há endpoint de edição de funcionários nesta entrega.
@@ -278,15 +281,19 @@ O erro é registrado e a API retorna 502 quando o envio falha. Aceitação SMTP 
 
 ## Groq
 
-Por padrão, `Groq:Simular=true`: uma sugestão contextual é produzida **no backend** e identificada como simulada. Para utilizar a integração:
+Para utilizar a integração Groq real, copie `.env.example` para `.env` e preencha `GROQ_API_KEY`. O carregador do backend lê esse arquivo local; variáveis já definidas no processo têm precedência. A chave é lida exclusivamente pelo servidor ASP.NET Core:
 
 ```powershell
-$env:Groq__Simular = 'false'
-$env:GROQ_API_KEY = 'configure-a-chave-somente-neste-terminal'
-$env:Groq__Model = 'openai/gpt-oss-20b'
+GROQ_API_KEY=<chave privada>
+Groq__Simular=false
+Groq__Model=openai/gpt-oss-20b
 ```
 
 Reinicie a API. `GroqService` usa `HttpClient` e o endpoint oficial de chat completions. O modelo é configurável, pois a disponibilidade pode mudar. O serviço recebe nome, descrição, bairro, categoria, status e protocolo do registro consultado no banco. Não envia o e-mail do cidadão à IA.
+
+## Fotografias nas reclamações
+
+O app Flutter permite escolher várias imagens da galeria ou abrir a câmera. O backend aceita até cinco arquivos JPG, PNG ou WebP por nova reclamação, com no máximo 8 MB cada, confere extensão, MIME e assinatura binária e limita o envio a seis pedidos por hora por sessão/IP. Os arquivos ficam em `App_Data/fotos-ocorrencias/{idOcorrencia}` com nome aleatório; somente metadados são persistidos em `dbo.FotoOcorrencia`. Aplique `database/08-fotos-ocorrencias.sql` após os scripts 01–07. Imagens são servidas por endpoints autenticados; funcionários podem ver o painel e cidadãos somente anexos de reclamações próprias.
 
 As instruções proíbem prazos inventados, equipes não confirmadas e promessas de serviço; a mensagem sempre exige revisão humana. O assistente não envia e-mails automaticamente. Se a integração real estiver habilitada sem chave válida, a API apresenta erro e não afirma ter consultado a IA. Consulte a [documentação oficial da Groq](https://console.groq.com/docs/text-chat).
 

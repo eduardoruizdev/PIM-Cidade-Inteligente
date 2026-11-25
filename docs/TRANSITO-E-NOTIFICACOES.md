@@ -27,9 +27,9 @@ Painel: http://localhost:5173. Aplicativo: http://127.0.0.1:5200. Use esses host
 
 ## Configuração TomTom
 
-O nome escolhido pelo usuário foi preservado: **backend/SantosConecta.API/appsettings.Local.example.json**. Apesar do nome, esse arquivo agora contém configuração privada local e não é um modelo versionado. Ele foi retirado do índice do Git sem apagar a cópia no disco e está no .gitignore.
+As chaves e opções de integração ficam no `.env` ignorado na raiz. Copie `.env.example`, configure `TOMTOM_API_KEY` e habilite `Traffic__Enabled`. O backend carrega esse arquivo antes da configuração da aplicação; variáveis definidas no processo prevalecem.
 
-Em Development, a API carrega `appsettings.Local.json`, depois `appsettings.Local.example.json`. Variáveis de ambiente têm precedência. Nenhum desses arquivos locais é carregado em produção.
+Configurações de banco locais existentes em `appsettings.Local.json` continuam aceitas somente em Development; chaves externas devem ficar no `.env` ou no ambiente do processo.
 
 Propriedades que devem existir no objeto principal do JSON, junto das configurações do banco:
 
@@ -45,13 +45,13 @@ Propriedades que devem existir no objeto principal do JSON, junto das configura�
 }
 ```
 
-Alternativa no terminal da API:
+Alternativa no arquivo `.env` da raiz:
 
 ```powershell
-$env:TOMTOM_API_KEY = 'CHAVE_LOCAL'
-$env:Traffic__Enabled = 'true'
-$env:Traffic__IncidentsEnabled = 'true'
-$env:Traffic__MaxTileRequestsPerMonth = '10000'
+TOMTOM_API_KEY=<chave privada>
+Traffic__Enabled=true
+Traffic__IncidentsEnabled=true
+Traffic__MaxTileRequestsPerMonth=10000
 ```
 
 Reinicie a API depois de alterar a configuração. A chave nunca é entregue ao React ou ao Flutter; os clientes consultam `/api/transito?regiao=Orla`. Os loggers HTTP desse adaptador são removidos para não registrar URLs autenticadas.

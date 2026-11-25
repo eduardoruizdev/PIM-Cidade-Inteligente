@@ -123,7 +123,8 @@ public sealed class TravessiaWorker(TravessiaService service, ILogger<TravessiaW
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await service.ConsultarAsync(stoppingToken);
+        try { await service.ConsultarAsync(stoppingToken); }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {

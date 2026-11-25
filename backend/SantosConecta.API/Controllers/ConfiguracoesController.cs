@@ -9,6 +9,6 @@ public class ConfiguracoesController(IConfiguration config) : ControllerBase
     public IActionResult Obter() => Ok(new
     {
         EmailSimulado = config.GetValue("Email:Simular", true),
-        GroqSimulada = config.GetValue("Groq:Simular", true)
+        GroqSimulada = config.GetValue("Groq:Simular", false)
     });
 }

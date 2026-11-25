@@ -1,4 +1,5 @@
 import 'api_client.dart';
+import 'package:image_picker/image_picker.dart';
 
 class OcorrenciaService {
   final ApiClient api;
@@ -13,6 +14,30 @@ class OcorrenciaService {
       Map<String, dynamic>.from(
         await api.send('/api/ocorrencias', method: 'POST', body: dados),
       );
+  Future<Map<String, dynamic>> criarComFotos(
+    Map<String, dynamic> dados,
+    List<XFile> fotos,
+  ) async {
+    final result = Map<String, dynamic>.from(
+      await api.sendMultipart(
+        '/api/ocorrencias/minhas/com-fotos',
+        fields: {
+          'idCategoria': '${dados['idCategoria']}',
+          'descricao': '${dados['descricao']}',
+          'bairro': '${dados['bairro']}',
+          'endereco': '${dados['endereco']}',
+          'localizacaoConfirmada': '${dados['localizacaoConfirmada']}',
+          'latitude': '${dados['latitude']}',
+          'longitude': '${dados['longitude']}',
+        },
+        photos: fotos,
+      ),
+    );
+    final occurrence = Map<String, dynamic>.from(result['ocorrencia'] as Map);
+    occurrence['_avisoFotos'] = result['aviso'];
+    return occurrence;
+  }
+
   Future<Map<String, dynamic>> sugerir(String descricao) async =>
       Map<String, dynamic>.from(
         await api.send(

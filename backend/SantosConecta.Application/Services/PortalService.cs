@@ -4,6 +4,8 @@ using SantosConecta.Domain.Entities;
 using SantosConecta.Domain.Repositories;
 namespace SantosConecta.Application.Services;
 
+public record ReclamacaoPublicaDto(int IdOcorrencia, string Protocolo, string Descricao, string Bairro, string Endereco, bool LocalizacaoConfirmada, decimal Latitude, decimal Longitude, DateTime DataAbertura, string Status, string Prioridade, string Categoria, IEnumerable<object> Historico);
+
 public class PortalService(IPortalRepository portal, ICategoriaRepository categorias, IPasswordHasher<Cidadao> hasher)
 {
     public async Task<CidadaoDto> CadastrarAsync(CadastroCidadaoDto dto)
@@ -21,7 +23,9 @@ public class PortalService(IPortalRepository portal, ICategoriaRepository catego
     {
         var c=await portal.PorEmailAsync(dto.Email.Trim().ToLowerInvariant());
         if(c?.SenhaHash is null) return null;
-        var result=hasher.VerifyHashedPassword(c,c.SenhaHash,dto.Senha);
+        PasswordVerificationResult result;
+        try { result=hasher.VerifyHashedPassword(c,c.SenhaHash,dto.Senha); }
+        catch (FormatException) { return null; }
         if(result==PasswordVerificationResult.Failed) return null;
         if(result==PasswordVerificationResult.SuccessRehashNeeded) { c.SenhaHash=hasher.HashPassword(c,dto.Senha); await portal.SalvarAsync(); }
         return Mapeamento.Dto(c);
@@ -34,17 +38,17 @@ public class PortalService(IPortalRepository portal, ICategoriaRepository catego
         c.Nome=dto.Nome.Trim(); c.Telefone=dto.Telefone.Trim(); await portal.SalvarAsync(); return Mapeamento.Dto(c);
     }
     // DTO específico: nunca expõe outros cidadãos, funcionários ou observações internas.
-    private static object Publico(Ocorrencia o) => new { o.IdOcorrencia,o.Protocolo,o.Descricao,o.Bairro,o.Endereco,o.LocalizacaoConfirmada,o.Latitude,o.Longitude,
-        DataAbertura=DateTime.SpecifyKind(o.DataAbertura,DateTimeKind.Utc),o.Status,o.Prioridade,Categoria=o.Categoria.Nome,
-        Historico=o.Historico.Where(h=>h.IdFuncionario==null || h.Descricao.StartsWith("Status alterado para "))
-            .OrderBy(h=>h.DataAlteracao).Select(h=>new {h.Descricao,DataAlteracao=DateTime.SpecifyKind(h.DataAlteracao,DateTimeKind.Utc)}) };
-    public async Task<List<object>> MinhasAsync(int id) => (await portal.MinhasAsync(id)).Select(Publico).ToList();
+    private static ReclamacaoPublicaDto Publico(Ocorrencia o) => new(o.IdOcorrencia,o.Protocolo,o.Descricao,o.Bairro,o.Endereco,o.LocalizacaoConfirmada,o.Latitude,o.Longitude,
+        DateTime.SpecifyKind(o.DataAbertura,DateTimeKind.Utc),o.Status,o.Prioridade,o.Categoria.Nome,
+        o.Historico.Where(h=>h.IdFuncionario==null || h.Descricao.StartsWith("Status alterado para "))
+            .OrderBy(h=>h.DataAlteracao).Select(h=>(object)new {h.Descricao,DataAlteracao=DateTime.SpecifyKind(h.DataAlteracao,DateTimeKind.Utc)}));
+    public async Task<List<ReclamacaoPublicaDto>> MinhasAsync(int id) => (await portal.MinhasAsync(id)).Select(Publico).ToList();
     public async Task<object?> MinhaAsync(int id,int cidadao)
     {
         var o=await portal.MinhaAsync(id,cidadao); if(o is null)return null;
         return new { Ocorrencia=Publico(o), Respostas=(await portal.RespostasAsync(id)).Select(e=>new {e.Assunto,e.Mensagem,e.DataEnvio}) };
     }
-    public async Task<object> CriarAsync(int id,NovaReclamacaoDto dto)
+    public async Task<ReclamacaoPublicaDto> CriarAsync(int id,NovaReclamacaoDto dto)
     {
         var categoria=await categorias.ObterAsync(dto.IdCategoria) ?? throw new ArgumentException("Categoria inválida.");
         if(string.IsNullOrWhiteSpace(dto.Descricao)||string.IsNullOrWhiteSpace(dto.Bairro)||string.IsNullOrWhiteSpace(dto.Endereco))throw new ArgumentException("Preencha descrição e localização.");

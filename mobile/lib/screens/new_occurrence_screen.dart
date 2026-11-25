@@ -1,7 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/api_client.dart';
 import '../services/categoria_service.dart';
@@ -26,6 +28,8 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   LatLng? point;
   final map = MapController();
   bool busy = false;
+  final picker = ImagePicker();
+  final List<XFile> photos = [];
   String? message;
   late Future<List<Map<String, dynamic>>> categories;
   @override
@@ -51,6 +55,39 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
       if (mounted) setState(() => bairros = list.cast<String>());
     } catch (e) {
       if (mounted) setState(() => message = e.toString());
+    }
+  }
+
+  Future<void> addPhotos({required bool camera}) async {
+    try {
+      final remaining = 5 - photos.length;
+      if (remaining <= 0) {
+        setState(() => message = 'Anexe no máximo cinco fotografias.');
+        return;
+      }
+      final List<XFile> chosen;
+      if (camera) {
+        final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 88, maxWidth: 2000);
+        chosen = photo == null ? <XFile>[] : [photo];
+      } else {
+        chosen = await picker.pickMultiImage(imageQuality: 88, maxWidth: 2000);
+      }
+      final accepted = <XFile>[];
+      for (final photo in chosen.take(remaining)) {
+        if (await photo.length() > 8 * 1024 * 1024) {
+          setState(() => message = '${photo.name}: cada imagem deve ter até 8 MB.');
+          continue;
+        }
+        final ext = photo.name.toLowerCase().split('.').last;
+        if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+          setState(() => message = '${photo.name}: use JPG, PNG ou WebP.');
+          continue;
+        }
+        accepted.add(photo);
+      }
+      if (accepted.isNotEmpty && mounted) setState(() { photos.addAll(accepted); message = null; });
+    } catch (_) {
+      if (mounted) setState(() => message = 'Não foi possível acessar a câmera ou a galeria. Verifique a permissão do dispositivo.');
     }
   }
 
@@ -257,7 +294,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
     }
     setState(() => busy = true);
     try {
-      final o = await OcorrenciaService(widget.api).criar({
+      final dados = {
         'idCategoria': category,
         'descricao': description.text.trim(),
         'bairro': neighborhood.text.trim(),
@@ -267,7 +304,9 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
         'localizacaoConfirmada': point != null,
         'latitude': point?.latitude ?? 0,
         'longitude': point?.longitude ?? 0,
-      });
+      };
+      final service = OcorrenciaService(widget.api);
+      final o = photos.isEmpty ? await service.criar(dados) : await service.criarComFotos(dados, photos);
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -275,7 +314,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
         builder: (c) => AlertDialog(
           title: Text('Reclamação registrada'),
           content: SelectableText(
-            'Seu protocolo:\n${o['protocolo']}\n\nAcompanhe em Minhas reclamações.',
+            'Seu protocolo:\n${o['protocolo']}\n\nAcompanhe em Minhas reclamações.${o['_avisoFotos'] == null ? '' : '\n\n${o['_avisoFotos']}'}',
           ),
           actions: [
             TextButton(
@@ -411,6 +450,21 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                       'A sugestão é opcional e depende de sua confirmação. A triagem final é da equipe.',
                       style: TextStyle(fontSize: 12, height: 1.6),
                     ),
+                    SizedBox(height: 20),
+                    Text('Fotografias do problema (opcional, até 5)', style: TextStyle(fontWeight: FontWeight.w700)),
+                    SizedBox(height: 8),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      OutlinedButton.icon(onPressed: busy ? null : () => addPhotos(camera: false), icon: Icon(Icons.photo_library_outlined), label: Text('Galeria')),
+                      OutlinedButton.icon(onPressed: busy || photos.length >= 5 ? null : () => addPhotos(camera: true), icon: Icon(Icons.camera_alt_outlined), label: Text('Tirar foto')),
+                    ]),
+                    Wrap(spacing: 10, runSpacing: 10, children: photos.map((photo) => SizedBox(
+                      width: 92, height: 92,
+                      child: Stack(fit: StackFit.expand, children: [
+                        ClipRRect(borderRadius: BorderRadius.circular(10), child: FutureBuilder<Uint8List>(future: photo.readAsBytes(), builder: (context, snapshot) => snapshot.hasData ? Image.memory(snapshot.data!, fit: BoxFit.cover) : Center(child: CircularProgressIndicator(strokeWidth: 2)))),
+                        Positioned(right: 2, top: 2, child: IconButton.filledTonal(onPressed: busy ? null : () => setState(() => photos.remove(photo)), icon: Icon(Icons.close, size: 18), tooltip: 'Remover fotografia')),
+                      ]),
+                    )).toList()),
+                    if (photos.isNotEmpty) Padding(padding: EdgeInsets.only(top: 8), child: Text('${photos.length}/5 fotografias selecionadas · até 8 MB cada', style: TextStyle(fontSize: 12))),
                   ],
                   if (step == 2) ...[
                     TextField(
@@ -507,6 +561,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                           ? 'Localização no mapa não confirmada'
                           : '${point?.latitude.toStringAsFixed(6)}, ${point?.longitude.toStringAsFixed(6)}',
                     ),
+                    review('Fotografias', photos.isEmpty ? 'Nenhuma fotografia anexada' : '${photos.length} fotografia(s) serão enviadas junto com a reclamação.'),
                     Text(
                       'Você receberá um protocolo após a confirmação da API. Não envie dados pessoais sensíveis ou situações de emergência por este projeto acadêmico.',
                       style: TextStyle(fontSize: 12, height: 1.6),
@@ -540,13 +595,9 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                     Expanded(
                       child: FilledButton(
                         onPressed: busy ? null : next,
-                        child: Text(
-                          busy
-                              ? 'Aguarde...'
-                              : step == 3
-                                  ? 'Enviar reclamação'
-                                  : 'Continuar',
-                        ),
+                        child: busy
+                            ? Row(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(strokeWidth: 2), SizedBox(width: 10), Text('Enviando reclamação...')])
+                            : Text(step == 3 ? 'Enviar reclamação' : 'Continuar'),
                       ),
                     ),
                   ],

@@ -57,7 +57,7 @@ export function ConectaChat({ onAction }: { onAction: (action: ConectaAction) =>
       </div>
       {error && <p className="conecta-error" role="alert">{error}</p>}
       {!messages.length && <div className="conecta-suggestions">{['Quero reclamar de um buraco', 'Minhas reclamações foram respondidas?', 'Vai chover amanhã?', 'Trânsito na Ana Costa'].map(q => <button key={q} disabled={busy || loading} onClick={() => void send(q)}>{q}</button>)}</div>}
-      <form onSubmit={e => { e.preventDefault(); void send(); }}><label className="sr-only" htmlFor="conecta-input">Pergunte ao Conecta</label><textarea id="conecta-input" ref={input} value={text} onChange={e => setText(e.target.value)} maxLength={1000} rows={2} placeholder="Como posso ajudar?" /><button type="submit" disabled={busy || loading || !text.trim()} aria-label="Enviar mensagem"><Send size={20} /></button></form>
+      <form onSubmit={e => { e.preventDefault(); void send(); }}><label className="sr-only" htmlFor="conecta-input">Pergunte ao Conecta</label><textarea id="conecta-input" ref={input} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} maxLength={1000} rows={2} placeholder="Como posso ajudar?" /><button type="submit" disabled={busy || loading || !text.trim()} aria-label="Enviar mensagem"><Send size={20} /></button></form>
     </section>}
   </>;
 }

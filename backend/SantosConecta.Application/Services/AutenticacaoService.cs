@@ -10,7 +10,9 @@ public class AutenticacaoService(IFuncionarioRepository funcionarios, IPasswordH
     {
         var f = await funcionarios.PorEmailAsync(dto.Email.Trim().ToLowerInvariant());
         if (f is null || !f.Ativo) return null;
-        var resultado = hasher.VerifyHashedPassword(f, f.SenhaHash, dto.Senha);
+        PasswordVerificationResult resultado;
+        try { resultado = hasher.VerifyHashedPassword(f, f.SenhaHash, dto.Senha); }
+        catch (FormatException) { return null; }
         return resultado == PasswordVerificationResult.Failed ? null : Mapeamento.Dto(f);
     }
 }

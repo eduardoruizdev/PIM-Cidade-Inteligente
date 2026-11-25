@@ -14,6 +14,7 @@ public class SantosConectaDbContext(DbContextOptions<SantosConectaDbContext> opt
     public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<Ocorrencia> Ocorrencias => Set<Ocorrencia>();
+    public DbSet<FotoOcorrencia> FotosOcorrencias => Set<FotoOcorrencia>();
     public DbSet<HistoricoOcorrencia> Historicos => Set<HistoricoOcorrencia>();
     public DbSet<EmailEnviado> Emails => Set<EmailEnviado>();
     protected override void OnModelCreating(ModelBuilder model)
@@ -34,6 +35,11 @@ public class SantosConectaDbContext(DbContextOptions<SantosConectaDbContext> opt
         model.Entity<Funcionario>().ToTable("Funcionario").HasKey(f => f.IdFuncionario);
         model.Entity<Categoria>().ToTable("Categoria").HasKey(c => c.IdCategoria);
         model.Entity<Ocorrencia>().ToTable("Ocorrencia").HasKey(o => o.IdOcorrencia);
+        model.Entity<FotoOcorrencia>().ToTable("FotoOcorrencia").HasKey(f => f.IdFoto);
+        model.Entity<FotoOcorrencia>().Property(f => f.NomeArmazenado).HasMaxLength(80).IsUnicode(false);
+        model.Entity<FotoOcorrencia>().Property(f => f.TipoConteudo).HasMaxLength(40).IsUnicode(false);
+        model.Entity<FotoOcorrencia>().HasIndex(f => f.IdOcorrencia);
+        model.Entity<FotoOcorrencia>().HasOne(f => f.Ocorrencia).WithMany().HasForeignKey(f => f.IdOcorrencia).OnDelete(DeleteBehavior.NoAction);
         model.Entity<HistoricoOcorrencia>().ToTable("HistoricoOcorrencia").HasKey(h => h.IdHistorico);
         model.Entity<EmailEnviado>().ToTable("EmailEnviado").HasKey(e => e.IdEmail);
         model.Entity<Cidadao>().Property(c => c.Email).IsUnicode(false);

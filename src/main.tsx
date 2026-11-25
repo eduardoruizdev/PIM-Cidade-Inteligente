@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './contexts/AppContext';
 import { router } from './routes';
+import { VLibrasWidget } from './components/VLibrasWidget';
 import './styles.css';
 import './styles-refinement.css';
 import './styles-premium.css';
@@ -15,6 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <RouterProvider router={router} />
+        <VLibrasWidget />
       </AppProvider>
     </QueryClientProvider>
   </React.StrictMode>,

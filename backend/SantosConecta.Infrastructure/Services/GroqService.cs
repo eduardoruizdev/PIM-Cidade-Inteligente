@@ -10,7 +10,7 @@ namespace SantosConecta.Infrastructure.Services;
 public class GroqService(HttpClient http, IConfiguration config) : IRespostaService
 {
     public async Task<SugestaoDto> AnalisarAsync(Ocorrencia o,string tarefa,CancellationToken ct) {
-        if(config.GetValue("Groq:Simular",true))return new("Análise simulada",tarefa=="resumo"?$"Protocolo {o.Protocolo}. Categoria: {o.Categoria.Nome}. Status: {o.Status}. Histórico: "+string.Join("; ",o.Historico.OrderBy(h=>h.DataAlteracao).Select(h=>h.Descricao)):tarefa=="classificacao"?$"Categoria atual: {o.Categoria.Nome}. Confirme a classificação após revisar a descrição.":"Verifique se o endereço, ponto de referência e impacto estão descritos. Esta verificação é simulada, não uma análise real de IA.",true);
+        if(config.GetValue("Groq:Simular",false))return new("Análise simulada",tarefa=="resumo"?$"Protocolo {o.Protocolo}. Categoria: {o.Categoria.Nome}. Status: {o.Status}. Histórico: "+string.Join("; ",o.Historico.OrderBy(h=>h.DataAlteracao).Select(h=>h.Descricao)):tarefa=="classificacao"?$"Categoria atual: {o.Categoria.Nome}. Confirme a classificação após revisar a descrição.":"Verifique se o endereço, ponto de referência e impacto estão descritos. Esta verificação é simulada, não uma análise real de IA.",true);
         var key=config["GROQ_API_KEY"];if(string.IsNullOrWhiteSpace(key))throw new InvalidOperationException("Configure GROQ_API_KEY no servidor.");
         using var req=new HttpRequestMessage(HttpMethod.Post,"https://api.groq.com/openai/v1/chat/completions");req.Headers.Authorization=new AuthenticationHeaderValue("Bearer",key);
         var instrucao=tarefa=="resumo"?"Resuma o histórico da ocorrência em ordem temporal.":tarefa=="classificacao"?"Sugira uma classificação para revisão humana, sem alterar o registro.":"Identifique informações ausentes relevantes para o atendimento, sem inventar fatos.";
@@ -21,7 +21,7 @@ public class GroqService(HttpClient http, IConfiguration config) : IRespostaServ
     public async Task<ClassificacaoDto> ClassificarAsync(string descricao,List<CategoriaDto> categorias,CancellationToken cancellationToken)
     {
         var key=config["GROQ_API_KEY"];
-        if(config.GetValue("Groq:Simular",true)||string.IsNullOrWhiteSpace(key))return new(null,null,null,false,"Sugestão de IA indisponível. Escolha a categoria manualmente; o registro continua disponível.");
+        if(config.GetValue("Groq:Simular",false)||string.IsNullOrWhiteSpace(key))return new(null,null,null,false,"Sugestão de IA indisponível. Escolha a categoria manualmente; o registro continua disponível.");
         try
         {
             using var request=new HttpRequestMessage(HttpMethod.Post,"https://api.groq.com/openai/v1/chat/completions");
@@ -44,7 +44,7 @@ public class GroqService(HttpClient http, IConfiguration config) : IRespostaServ
     public async Task<SugestaoDto> GerarAsync(Ocorrencia o, CancellationToken cancellationToken)
     {
         var assunto = $"Atualização da reclamação #{o.Protocolo}";
-        if (config.GetValue("Groq:Simular", true))
+        if (config.GetValue("Groq:Simular", false))
             return new(assunto, $"Olá, {o.Cidadao.Nome}!\n\nRecebemos sua reclamação referente a {o.Categoria.Nome.ToLowerInvariant()} no bairro {o.Bairro}.\n\nO status registrado é: {o.Status.ToLowerInvariant()}. Você pode acompanhar as atualizações pelo protocolo #{o.Protocolo}.\n\nAtenciosamente,\nEquipe Santos Conecta.", true);
         var key = config["GROQ_API_KEY"];
         if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("Chave da Groq não configurada no servidor.");

@@ -69,7 +69,7 @@ Incidentes detalhados ainda não estão integrados e são explicitamente indispo
 
 O dashboard usa registros reais do SQL (a base acadêmica contém dados fictícios), com filtros por período, status e prioridade; separa abertas, em análise, em andamento e resolvidas. Atraso significa ocorrência não finalizada há mais de sete dias, **regra acadêmica, sem SLA oficial**. A média utiliza apenas resolvidas com evento registrado de resolução, em horas entre abertura e último evento de resolução. Não estima datas ausentes. Conversas pendentes contam ocorrências com mensagem de cidadão posterior à última resposta da equipe. Distribuições, mapa e fila foram preservados, sem recriar Relatórios.
 
-Groq continua exclusivamente no backend com `GROQ_API_KEY`. Na conversa, o funcionário pode sugerir resposta, resumir histórico, sugerir classificação ou identificar informações faltantes. As saídas são rascunhos; nenhuma altera categoria, status ou envia mensagem automaticamente. O modo simulado permanece rotulado. Groq real ainda depende de chave e `Groq__Simular=false`.
+Groq continua exclusivamente no backend com `GROQ_API_KEY` configurada no `.env` da raiz. Na conversa, o funcionário pode sugerir resposta, resumir histórico, sugerir classificação ou identificar informações faltantes. As saídas são rascunhos; nenhuma altera categoria, status ou envia mensagem automaticamente.
 
 ## Testes reproduzíveis
 

@@ -8,6 +8,7 @@ obj/
 .env
 .env.*
 !.env.example
+App_Data/
 appsettings.Development.json
 **/appsettings.Production.json
 *.user
@@ -33,6 +34,7 @@ playwright-report/
 .env
 .env.*
 !.env.example
+App_Data/
 **/.data-protection/
 **/appsettings.Development.json
 **/appsettings.Production.json
